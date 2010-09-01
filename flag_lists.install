@@ -1,0 +1,46 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * The Flag lists module install file.
+ */
+
+ /**
+ * Implementation of hook_install().
+ */
+function flag_lists_schema() {
+  $schema = array();
+  $schema['flag_lists'] = array(
+    'fields' => array(
+      'fid' => array(
+        'type' => 'int',
+        'size' => 'small',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'uid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'primary key' => array('fid'),
+  );
+  return $schema;
+}
+
+ /**
+ * Implementation of hook_install().
+ */
+function flag_lists_install() {
+  drupal_install_schema('flag_lists');
+}
+
+function flag_lists_uninstall() {
+  drupal_uninstall_schema('flag_lists');
+  db_query("DELETE FROM {variable} WHERE name LIKE 'flag_lists%'");
+  drupal_set_message(t('Flag lists has been uninstalled.'));
+
+}
