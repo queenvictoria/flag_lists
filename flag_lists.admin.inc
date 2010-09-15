@@ -57,12 +57,12 @@ function theme_flag_lists_admin_page($flags) {
 function flag_lists_form(&$form_state, $type, $name = NULL) {
   if (!isset($name)) {
     // Adding a new flag.
-    drupal_set_title(t('Add new @name', array('@name' => variable_get('flag_lists_name', t('Flag')))));
+    drupal_set_title(t('Add new @name list', array('@name' => variable_get('flag_lists_name', t('flags')))));
   }
   else {
     // Editing an existing flag.
     $flag = flag_lists_get_flag($type);
-    drupal_set_title(t('Edit your "@title" @name title', array('@title' => $flag->get_title(), '@name' => variable_get('flag_lists_name', t('Flag')))));
+    drupal_set_title(t('Edit your "@title" @name title', array('@title' => $flag->get_title(), '@name' => variable_get('flag_lists_name', t('flags')))));
     $form['edit'] = array(
       '#type' => 'hidden',
       '#value' => TRUE,
@@ -73,7 +73,7 @@ function flag_lists_form(&$form_state, $type, $name = NULL) {
     '#type' => 'textfield',
     '#title' => t('Title'),
     '#default_value' => $flag->title,
-    '#description' => t('A short, descriptive title for this @name.', array('@name' => variable_get('flag_lists_name', t('Flag')))),
+    '#description' => t('A short, descriptive title for this @name list.', array('@name' => variable_get('flag_lists_name', t('flags')))),
     '#maxlength' => 255,
     '#required' => TRUE,
     '#access' => empty($flag->locked['title']),
@@ -106,9 +106,9 @@ function flag_lists_settings_form(&$form_state) {
 
   $form['flag_lists_name'] = array(
     '#type' => 'textfield',
-    '#title' => t('Substitute "Flag" with your own terminology'),
+    '#title' => t('Substitute "flags" with your own terminology'),
     '#default_value' => variable_get('flag_lists_name', t('flags')),
-    '#description' => t('You can choose to use another name for "Flags", such as "List" or "Bookmarks".'),
+    '#description' => t('You can choose to use another name for "flags", such as "favorites" or "bookmarks". Lowercase and plural names work best.'),
     '#required' => TRUE,
   );
 
