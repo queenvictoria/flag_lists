@@ -24,8 +24,8 @@ function theme_flag_lists_admin_page($flags) {
   // Build the list of normal, database flags.
   foreach ($flags as $flag) {
     $ops = theme('links', array(
-      'flags_edit' =>  array('title' => t('edit'), 'href' => 'admin/build/flags/edit/' . $flag->name, 'query' => drupal_get_destination()),
-      'flags_delete' =>  array('title' => t('delete'), 'href' => 'admin/build/flags/delete/' . $flag->name, 'query' => drupal_get_destination()),
+      'flags_edit' =>  array('title' => t('edit'), 'href' => 'admin/build/flag_lists/edit/'. $flag->name, 'query' => drupal_get_destination()),
+      'flags_delete' =>  array('title' => t('delete'), 'href' => 'admin/build/flag_lists/delete/' . $flag->name, 'query' => drupal_get_destination()),
     ));
     $name = db_result(db_query("SELECT name from {users} WHERE uid = %d", $flag->uid));
     $user = l($name, 'user/'. $flag->uid, array('attributes' => array('title' => t('View user profile.'))));
@@ -44,36 +44,60 @@ function theme_flag_lists_admin_page($flags) {
     );
   }
 
-  $header = array(t('Flag'), t('Flag title'), t('Flag type'), t('Owner'), t('Node types'), t('Operations'));
+  $header = array(t('List'), t('List title'), t('List type'), t('Owner'), t('Node types'), t('Operations'));
   $output .= theme('table', $header, $rows);
 
   return $output;
 }
 
+function flag_lists_add($type = NULL) {
+  if (is_null($type)) {
+    drupal_access_denied();
+  }
+  
+  return drupal_get_form('flag_lists_form', NULL, $type);
+}
 
 /**
- * Add/Edit flag lists page.
+ * Form to Add or edit a list.
  */
-function flag_lists_form(&$form_state, $type, $name = NULL) {
-  if (!isset($name)) {
-    // Adding a new flag.
-    drupal_set_title(t('Add new @name list', array('@name' => variable_get('flag_lists_name', t('flags')))));
+function flag_lists_form(&$form_state, $name = NULL, $type = NULL) {
+  // First some sanity checks. $name and $type can't both be NULL.
+  // There must be a template for this content type.
+  if (is_null($name) && is_null($type)) {
+    drupal_access_denied();
   }
+  if (!flag_lists_template_exists($type) && !is_null($name)) {
+    return;
+  }
+
+  // Adding a new list.
+  if (!isset($name)) {
+    drupal_set_title(t('Add a new list'));
+    $form['edit'] = array(
+      '#type' => 'hidden',
+      '#value' => FALSE,
+    );
+  }
+
+  // Editing an existing list.
   else {
-    // Editing an existing flag.
-    $flag = flag_lists_get_flag($type);
-    drupal_set_title(t('Edit your "@title" @name title', array('@title' => $flag->get_title(), '@name' => variable_get('flag_lists_name', t('flags')))));
+    $flag = flag_lists_get_flag($name);
+    drupal_set_title(t('Edit your "@title" @name title', array('@title' => $flag->get_title(), '@name' => variable_get('flag_lists_name', t('list')))));
     $form['edit'] = array(
       '#type' => 'hidden',
       '#value' => TRUE,
     );
+    $form['name'] = array(
+      '#type' => 'hidden',
+      '#value' => $name,
+    );
   }
-
   $form['title'] = array(
     '#type' => 'textfield',
     '#title' => t('Title'),
     '#default_value' => $flag->title,
-    '#description' => t('A short, descriptive title for this @name list.', array('@name' => variable_get('flag_lists_name', t('flags')))),
+    '#description' => t('A short, descriptive title for this @name list. Limit to 255 characters.', array('@name' => variable_get('flag_lists_name', t('list')))),
     '#maxlength' => 255,
     '#required' => TRUE,
     '#access' => empty($flag->locked['title']),
@@ -91,6 +115,61 @@ function flag_lists_form(&$form_state, $type, $name = NULL) {
 }
 
 /**
+ * Validate a list.
+ */
+function flag_lists_form_validate($form, $form_state) {
+  // Ensure 255 charactor or less name.
+  if (drupal_strlen($form_state['values']['title']) > 255) {
+    form_set_error('name', t('The @name title may only be 32 characters long.', array('@name' => variable_get('flag_lists_name', t('list')))));
+  }
+  // Ensure the machine name is unique.
+  if (!$form_state['values']['edit']) {
+    if (flag_lists_title_exists($form_state['values']['title'], $form_state['values']['type'])) {
+      form_set_error('title', t('You already have a @name with this name for this type of content.', array('@name' => variable_get('flag_lists_name', t('list')))));
+    }
+  }
+}
+
+/**
+ * Save a list.
+ */
+function flag_lists_form_submit($form, $form_state) {
+  if ($form_state['values']['edit']) {
+    // Editing the title.
+    $flag = flag_lists_get_flag($form_state['values']['name']);
+    $flag->title = $form_state['values']['title'];
+    flag_lists_set_messages($flag);
+    flag_lists_save($flag);
+    _flag_lists_clear_cache();
+  }
+  else {
+    // New flag.
+    global $user;
+
+    // Load the template row.
+    $type = $form_state['values']['type'];
+    $row = db_fetch_object(db_query("SELECT * from {flags} f LEFT JOIN {flag_lists_types} fl on f.name = fl.name WHERE fl.type = '%s'", $type));
+
+    $newflag = flag_flag::factory_by_content_type('node');
+
+    $flag = $newflag->factory_by_row($row);
+    // The template fid becomes the flag_lists parent flag.
+    $flag->pfid = $row->fid;
+    // The fid is NULL because this is really a new flag.
+    $flag->fid = NULL;
+    // The name is created in the save function.
+    $flag->name = NULL;
+    $flag->link_type = 'toggle';
+    $flag->title = $form_state['values']['title'];;
+    $flag->types = array($type);
+    $flag->uid = $user->uid;
+    flag_lists_set_messages($flag);
+    // Save it.
+    flag_lists_save($flag);
+  }
+}
+
+/**
  * Flag lists settings page.
  */
 function flag_lists_settings_form(&$form_state) {
@@ -98,101 +177,32 @@ function flag_lists_settings_form(&$form_state) {
   $form['text'] = array(
     '#title' => t('Using flag lists'),
     '#value' => t('Flag lists allow users to create their own personal flags.
-      No user can see (unless in a public view from the views module) or set
-      another user\'s personal flags. These settings apply globally to all flag
-      lists created by all users. Changing a setting here will only affect newly
-      created flag lists.'),
+      No user can add to another user\'s lists. Lists inherit their
+      settings from template flags, which exist as flags in the flags\' module.'
+    ),
   );
 
   $form['flag_lists_name'] = array(
     '#type' => 'textfield',
-    '#title' => t('Substitute "flags" with your own terminology'),
-    '#default_value' => variable_get('flag_lists_name', t('flags')),
-    '#description' => t('You can choose to use another name for "flags", such as "favorites" or "bookmarks". Lowercase and plural names work best.'),
+    '#title' => t('Substitute "list" with your own terminology'),
+    '#default_value' => variable_get('flag_lists_name', t('list')),
+    '#description' => t('You can choose to use another name for "list", such as "favorites" or "bookmarks". Lowercase and plural names usually work best.'),
     '#required' => TRUE,
-  );
-
-  $form['messages'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Messages'),
-  );
-
-  $form['messages']['flag_lists_short'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Flag lists link prefix text'),
-    '#default_value' => variable_get('flag_lists_short', t('Add this to your')),
-    '#description' => t('The prefix text for the "flag this" link for this flag.'),
-    '#required' => TRUE,
-  );
-
-  $form['messages']['flag_lists_long'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Flag lists link description prefix'),
-    '#default_value' => variable_get('flag_lists_long', t('Click here to add this to your')),
-    '#description' => t('The description of the "flag this" link. Usually displayed on mouseover.'),
-  );
-
-  $form['messages']['flag_lists_message'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Flagged message prefix'),
-    '#default_value' => variable_get('flag_lists_message', t('This has been added to your')),
-    '#description' => t('Message displayed after flagging content. If JavaScript is enabled, it will be displayed below the link. If not, it will be displayed in the message area.'),
-  );
-
-  $form['messages']['unflag_lists_short'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Unflag link prefix text'),
-    '#default_value' => variable_get('unflag_lists_short', t('Remove this from your')),
-    '#description' => t('The text for the "unflag this" link prefix for this flag.'),
-    '#required' => TRUE,
-  );
-
-  $form['messages']['unflag_lists_long'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Unflag link description prefix'),
-    '#default_value' => variable_get('unflag_lists_long', t('Click here to remove this from your')),
-    '#description' => t('The description of the "unflag this" link. Usually displayed on mouseover.'),
-  );
-
-  $form['messages']['unflag_lists_message'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Unflagged message prefix'),
-    '#default_value' => variable_get('unflag_lists_message', t('This has been removed from your')),
-    '#description' => t('Message displayed after content has been unflagged. If JavaScript is enabled, it will be displayed below the link. If not, it will be displayed in the message area.'),
-  );
-  $form['display'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Display options'),
-    '#description' => t('Flags are usually controlled through links that allow users to toggle their behavior. You can choose how users interact with flags by changing options here. It is legitimate to have none of the following checkboxes ticked, if, for some reason, you wish <a href="@placement-url">to place the the links on the page yourself</a>.', array('@placement-url' => 'http://drupal.org/node/295383')),
-    '#tree' => FALSE,
-  );
-  $form['display']['flag_lists_use_links'] = array(
-    '#type' => 'checkbox',
-    '#title' => t('Display flag lists in links'),
-    '#description' => t('Unchecking this will prevent flag lists from appearing in links. You will need to display them using the provided block or the flag api.'),
-    '#default_value' => variable_get('flag_lists_use_links', 1),
-  );
-  $form['display']['flag_lists_link_type'] = array(
-    '#type' => 'radios',
-    '#title' => t('Link type'),
-    '#options' => _flag_link_type_options(),
-    '#option_descriptions' => _flag_link_type_descriptions(),
-    '#flag_link_fields' => _flag_link_type_fields(),
-    '#after_build' => array('flag_expand_link_option'),
-    '#default_value' => variable_get('flag_lists_link_type', NULL),
   );
   $form['rebuild'] = array(
     '#type' => 'fieldset',
     '#title' => t('Global rebuild'),
-    '#description' => t('Changes to these settings normally apply to only newly
-      created flags. However, you can globally apply changes here. First adjust
-      the settings above and save them. Then click the link below. This will
-      change all existing flag lists. It cannot be undone.'),
+    '#description' => t('Changes to list templates and  settings normally apply
+      to only newly created flags. However, you can globally apply changes here.
+      First adjust the settings above and the list templates and save them. Then
+      click the link below. This will change ALL existing flag lists. It cannot
+      be undone.'),
     '#tree' => FALSE,
   );
   $form['rebuild']['global_rebuild'] = array(
-    '#value' => l('Rebuild all flag lists.', 'admin/build/flags/lists/rebuild'),
+    '#value' => l('Rebuild all flag lists.', 'admin/build/flag_lists/rebuild'),
   );
+
   return system_settings_form($form);
 }
 
@@ -216,11 +226,12 @@ function flag_lists_rebuild_confirm_submit($form, $form_state) {
   drupal_set_message(t('All flag lists have been rebuilt.'));
   drupal_goto('admin/build/flags/lists/settings');
 }
+
 /**
  * Delete flag lists page.
  */
-function flag_lists_delete_confirm(&$form_state, $fid) {
-  $flag = flag_lists_get_flag($fid);
+function flag_lists_delete_confirm(&$form_state, $name) {
+  $flag = flag_lists_get_flag($name);
   if (empty($flag)) {
     drupal_goto();
   }
@@ -238,9 +249,59 @@ function flag_lists_delete_confirm(&$form_state, $fid) {
 function flag_lists_delete_confirm_submit($form, &$form_state) {
   $flag = flag_lists_get_flag($form_state['values']['fid']);
   if ($form_state['values']['confirm']) {
-    $flag->delete();
-    $flag->disable();
+    flag_lists_fl_delete($flag);
     _flag_lists_clear_cache();
   }
-  drupal_set_message(t('@title has been deleted.', array('@title' => $flag->get_title())));
+}
+
+/**
+ * Form to create a new template.
+ */
+function flag_lists_create_template_form(&$form_state) {
+  $form['help'] = array(
+    '#value' => t('This form creates a new, blank list template. After saving, you will be able to configure further options.'),
+  );
+  $form['name'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Template name'),
+    '#description' => t('The machine-name for this flag. It may be up to 32 characters long and my only contain lowercase letters, underscores, and numbers.'),
+    '#maxlength' => 255,
+    '#required' => TRUE,
+  );
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save'),
+  );
+  return $form;
+}
+
+/**
+ * New template validation.
+ */
+function flag_lists_create_template_form_validate($form, &$form_state) {
+  // Ensure a safe machine name.
+  if (!preg_match('/^[a-z_][a-z0-9_]*$/', $form_state['values']['name'])) {
+    form_set_error('name', t('The flag name may only contain lowercase letters, underscores, and numbers.'));
+  }
+  // Ensure 32 charactor or less name.
+  if (drupal_strlen($form_state['values']['name']) > 32) {
+    form_set_error('name', t('The flag name may only be 32 characters long.'));
+  }
+  // Ensure the machine name is unique.
+  $flag = flag_get_flag($form_state['values']['name']);
+  if ($flag) {
+    form_set_error('name', t('Flag names must be unique. This flag name is already in use.'));
+  }
+}
+
+/**
+ * New template submit.
+ */
+function flag_lists_create_template_form_submit($form, &$form_state) {
+  $template = flag_lists_flag_default_flags($form_state['values']['name'] .'_fl_template');
+  $flag = flag_flag::factory_by_array($template[0]);
+  $flag->save();
+  // Enter the new template into flag_lists_types.
+  db_query("INSERT INTO {flag_lists_types} (name) VALUES ('%s')", $flag->name);
+  $form_state['redirect'] = 'admin/build/flags/edit/'. $flag->name;
 }

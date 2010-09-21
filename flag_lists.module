@@ -47,34 +47,44 @@ function flag_lists_menu() {
     'type' => MENU_LOCAL_TASK,
     'weight' => 2,
   );
-  $items['admin/build/flags/lists/add/%'] = array(
-    'title' => 'Add a list',
+  $items['admin/build/flags/lists/template'] = array(
+    'title' => 'New template',
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('flag_lists_form', 5),
+    'page arguments' => array('flag_lists_create_template_form'),
+    'access callback' => 'user_access',
+    'access arguments' => array('administer flag lists'),
+    'file' => 'flag_lists.admin.inc',
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 3,
+  );
+  $items['admin/build/flag_lists/add/%'] = array(
+    'title' => 'Add a list',
+    'page callback' => 'flag_lists_add',
+    'page arguments' => array(4),
     'access callback' => 'user_access',
     'access arguments' => array('create flag lists'),
     'file' => 'flag_lists.admin.inc',
     'type' => MENU_NORMAL_ITEM,
   );
-  $items['admin/build/flags/lists/edit/%/%'] = array(
+  $items['admin/build/flag_lists/edit/%'] = array(
     'title' => 'Edit a list',
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('flag_lists_form', 5, 6),
+    'page arguments' => array('flag_lists_form', 4),
     'access callback' => 'flag_lists_is_owner',
-    'access arguments' => array(5, 4),
+    'access arguments' => array(3,4),
     'file' => 'flag_lists.admin.inc',
     'type' => MENU_CALLBACK,
   );
-  $items['admin/build/flags/lists/delete/%'] = array(
+  $items['admin/build/flag_lists/delete/%'] = array(
     'title' => 'Delete a list',
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('flag_lists_delete_confirm', 5),
+    'page arguments' => array('flag_lists_delete_confirm', 4),
     'access callback' => 'flag_lists_is_owner',
-    'access arguments' => array(5, 4),
+    'access arguments' => array(3, 4),
     'file' => 'flag_lists.admin.inc',
     'type' => MENU_CALLBACK,
   );
-  $items['admin/build/flags/lists/rebuild'] = array(
+  $items['admin/build/flags_lists/rebuild'] = array(
     'title' => 'Rebuild all flag lists',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('flag_lists_rebuild_confirm'),
@@ -83,10 +93,16 @@ function flag_lists_menu() {
     'file' => 'flag_lists.admin.inc',
     'type' => MENU_CALLBACK,
   );
+  $items['flag-lists'] = array(
+    'title' => 'Flag',
+    'page callback' => 'flag_lists_page',
+    'access callback' => 'user_access',
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
 
   $items['user/%/flags/lists'] = array(
-    'title callback' => 'flag_lists_user_title',
-    'title arguments' => array(1),
+    'title' => 'Lists',
     'page callback' => 'flag_lists_user_page',
     'page arguments' => array(1),
     'access callback' => 'user_access',
@@ -96,7 +112,7 @@ function flag_lists_menu() {
   $items['user/%/flags/lists/%'] = array(
     'title' => 'Content in flag list',
     'page callback' => 'flag_lists_user_list',
-    'page arguments' => array(4),
+    'page arguments' => array(1, 4),
     'access callback' => 'user_access',
     'access arguments' => array('view flag lists'),
     'type' => MENU_CALLBACK,
@@ -116,13 +132,13 @@ function flag_lists_user_page($uid) {
  */
 function theme_flag_lists_user_page($uid) {
   $account = user_load($uid);
-  drupal_set_title(t('@name lists', array('@name' => ucfirst(variable_get('flag_lists_name', t('flags'))))));
+  drupal_set_title(t('Lists'));
   if ($flags = flag_lists_get_user_flags(NULL, $account)) {
     // Build the list of flag lists for this node.
     foreach ($flags as $flag) {
       $ops = theme('links', array(
-        'flags_edit' =>  array( 'title' => t('edit'), 'href' => 'admin/build/flags/lists/edit/'. $flag->fid .'/'. $flag->name, 'query' => drupal_get_destination()),
-        'flags_delete' =>  array( 'title' => t('delete'), 'href' => 'admin/build/flags/lists/delete/'. $flag->fid, 'query' => drupal_get_destination()),
+        'flags_edit' =>  array( 'title' => t('edit'), 'href' => 'admin/build/flag_lists/edit/'. $flag->name, 'query' => drupal_get_destination()),
+        'flags_delete' =>  array( 'title' => t('delete'), 'href' => 'admin/build/flag_lists/delete/'. $flag->fid, 'query' => drupal_get_destination()),
       ));
       $items[] = l($flag->title, "user/$uid/flags/lists/".$flag->fid) . $ops;
     }
@@ -135,17 +151,17 @@ function theme_flag_lists_user_page($uid) {
 /**
  * List the contents of a user-defined list
  */
-function flag_lists_user_list($fid) {
-  return theme('flag_lists_user_list', $fid);
+function flag_lists_user_list($uid, $fid) {
+  return theme('flag_lists_user_list', $uid, $fid);
 }
 
 /**
  * Theme the output of user-defined list page
  */
-function theme_flag_lists_user_list($fid) {
+function theme_flag_lists_user_list($uid, $fid) {
   $flag = flag_lists_get_flag($fid);
   drupal_set_title($flag->title);
-  $content = flag_lists_get_flagged_content($fid);
+  $content = flag_lists_get_flagged_content($fid, $uid);
   foreach($content as $item){
     if($item->content_type == 'node'){
       $node = node_load($item->content_id);
@@ -189,25 +205,63 @@ function flag_lists_perm() {
 }
 
 /**
- * Implementation of hook_db_rewrite_sql().
- *
- * Alter the flag_get_flags() query so that it only inludes flag lists that are
- * owned by the current user and are available on the current content type, or
- * needed for the flag or unflag callback.
- *
- * But, don't rewrite on the edit or delete form. @todo Can we do this without
- * arg checking?
+ * Implementation of hook_form_alter().
  */
-function flag_lists_db_rewrite_sql($query, $primary_table, $primary_field, $args) {
-  $skip = (arg(2) == 'flags' && (arg(3) == 'edit' || arg(3) == 'delete'));
-  if ($primary_table == 'flags' && $primary_field == 'fid' && !$skip) {
-    $fids = implode(', ', flag_lists_get_content_fids());
-    $return = array();
-    $return['where'] = "f.fid IN ($fids)";
-    return $return;
+function flag_lists_form_alter(&$form, $form_state, $form_id) {
+  switch ($form_id) {
+    case 'flag_form':
+      // A template flag should always have a record in the flag_lists_types table.
+      if ($result = db_fetch_array(db_query("SELECT name FROM {flag_lists_types} WHERE name = '%s'", $form['name']['#default_value']))) {
+        $form['name']['#type'] = 'value';
+        $form['global']['#type'] = 'value';
+        $form['title']['#description'] = t('A short, descriptive title for this template. It will be used in administrative interfaces to refer to this template.');
+
+        foreach (element_children($form['messages']) as $message) {
+          if ($form['messages'][$message]['#type'] == 'textfield') {
+            $form['messages'][$message]['#title'] .= t(' prefix');
+            $form['messages'][$message]['#description'] = $form['messages'][$message]['#description'] . t(' Enter a prefix here. The user-created list name and the admin-chosen list terminology will be appended.');
+          }
+        }
+
+        foreach (element_children($form['display']) as $display) {
+          $form['display'][$display]['#type'] = 'value';
+        }
+        $form['display']['link_type']['#default_value'] = 'fl_template';
+        $form['display']['#description'] = t('Unlike normal flags, lists are only displayed in a block provided by this module or in views blocks. See <a href="/admin/build/block/list">the block admin page</a> to place the block.');
+
+        $form['#validate'][] = 'flag_lists_template_validate';
+        $form['#submit'][] = 'flag_lists_template_submit';
+      }
+    break;
   }
 }
 
+function flag_lists_template_validate($form, &$form_state) {
+  $types = array_unique($form_state['values']['types']);
+  $errors = array();
+  foreach ($types as $type) {
+    if ($result = db_query("SELECT * FROM {flag_lists_types} WHERE type = '%s' AND name <> '%s'", $type, $form_state['values']['name'])) {
+      while($errors = db_fetch_array($result)) {
+        $content_types[] = $errors['type'];
+        $templates[] = $errors['name'];
+      }
+    }
+  }
+  if (count($content_types)) {
+    $content_types = implode(', ', $content_types);
+    $templates = implode(', ', array_unique($templates));
+    form_set_error('types', t('The flaggable content type(s) "@type" is(are) already assigned to the template(s) "@template." A content type may be assigned to only one template. To reassign a content type you must first remove its other assignment.', array('@type' => $content_types, '@template' => $templates)));
+  }
+}
+
+function flag_lists_template_submit($form, &$form_state) {
+  $types = array_unique($form_state['values']['types']);
+  // Clean out the old types, then add the new.
+  db_query("DELETE FROM {flag_lists_types} WHERE name = '%s'", $form_state['values']['name']);
+  foreach ($types as $type) {
+    db_query("INSERT INTO {flag_lists_types} (name, type) VALUES ('%s', '%s')", $form_state['values']['name'], $type);
+  }
+}
 /**
  * Helper function to build an array of all flags available to or owned by the
  * current user and that are available on the current content type.
@@ -264,11 +318,11 @@ function flag_lists_get_content_fids() {
  */
 function flag_lists_block($op = 'list', $delta = 0) {
   if ($op == 'list') {
-    $blocks[0]['info'] = t('User flag lists');
+    $blocks[0]['info'] = t('Lists');
     return $blocks;
   }
   elseif ($op == 'view' && user_access('create flag lists') ) {
-    $block['subject'] =  t('My ') . variable_get('flag_lists_name', t('Flags'));
+    $block['subject'] =  t('My lists');
     $block['content'] = theme('flag_lists_list', $node);
     if (!is_null($block['content'])) {
       return $block;
@@ -283,47 +337,8 @@ function flag_lists_user($op, &$edit, &$account, $category = NULL) {
   switch ($op) {
     case 'delete':
       // Remove personal flags by this user.
-      $result = db_query("DELETE FROM {flag_lists} WHERE uid = %d", $account->uid);
+      $result = db_query("DELETE FROM {flag_lists_flags} WHERE uid = %d", $account->uid);
       break;
-  }
-}
-
-/**
- * Create or edit a personal flag.
- */
-function flag_lists_form_submit($form, $form_state) {
-  if ($form_state['values']['edit']) {
-    // Editing the title.
-    $flag = flag_lists_get_flag($form_state['values']['type']);
-    $flag->title = $form_state['values']['title'];
-    flag_lists_set_messages($flag);
-    $flag->save();
-    _flag_lists_clear_cache();
-  }
-  else {
-    // New personal flag.
-    global $user;
-    $flag_lists['uid'] = $user->uid;
-    $flag = flag_flag::factory_by_content_type('node');
-    $title = $form_state['values']['title'];
-    $flag->title           = $title;
-    $flag->types           = array($form_state['values']['type']);
-    $flag->link_type       = variable_get('flag_lists_link_type', 'toggle');
-    flag_lists_set_messages($flag);
-
-    // Save to get a flag id.
-    $flag->save();
-    // Build unique flag name.
-    $flag->name = 'fl_'. $user->uid .'_'. $flag->fid;
-    $flag->update();
-    $flag->enable();
-    global $user;
-    $flag_lists['fid'] = $flag->fid;
-    $flag_lists['uid'] = $user->uid;
-
-    drupal_write_record('flag_lists', $flag_lists);
-    drupal_set_message(t('@name list @title has been created.', array('@name' => ucfirst(variable_get('flag_lists_name', t('Flags'))), '@title' => $flag->get_title())));
-    _flag_clear_cache();
   }
 }
 
@@ -331,13 +346,16 @@ function flag_lists_form_submit($form, $form_state) {
  * Build a flag's messages.
  */
 function flag_lists_set_messages(&$flag) {
+  // Get the parent flag. These are cached by the flag module.
+  $pflag = flag_get_flag(NULL, $flag->pfid);
   $title = $flag->title;
-  $flag->flag_short      = variable_get('flag_lists_short', t('Add this to your')) .' '. $title .' '. variable_get('flag_lists_name', t('flags list'));
-  $flag->flag_long       = variable_get('flag_lists_long', t('Click here to add this to your')) .' '. $title .' '. variable_get('flag_lists_name', t('flags list'));
-  $flag->flag_message    = variable_get('flag_lists_message', t('This has been added to your')) .' '. $title .' '. variable_get('flag_lists_name', t('flags list'));
-  $flag->unflag_short    = variable_get('unflag_lists_short', t('Remove this from your')) .' '. $title .' '. variable_get('flag_lists_name', t('flags list'));
-  $flag->unflag_long     = variable_get('unflag_lists_long', t('Click here to remove this from your')) .' '. $title .' '. variable_get('flag_lists_name', t('flags list'));
-  $flag->unflag_message  = variable_get('unflag_lists_message', t('This has been removed from your')) .' '. $title .' '. variable_get('flag_lists_name', t('flags list'));
+  $lists_name = variable_get('flag_lists_name', t('list'));
+  $flag->flag_short      = $pflag->flag_short .' '. $title .' '. $lists_name;
+  $flag->flag_long       = $pflag->flag_long .' '. $title .' '. $lists_name;
+  $flag->flag_message    = $pflag->flag_message .' '. $title .' '. $lists_name;
+  $flag->unflag_short    = $pflag->unflag_short .' '. $title .' '. $lists_name;
+  $flag->unflag_long     = $pflag->unflag_long .' '. $title .' '. $lists_name;
+  $flag->unflag_message  = $pflag->unflag_message .' '. $title .' '. $lists_name;
 }
 
 /**
@@ -349,13 +367,11 @@ function flag_lists_flag_access($flag, $content_id, $action, $account) {
   switch ($action) {
     case 'flag':
     case 'unflag':
-      if (flag_lists_is_list($flag->fid)) {
-        if (db_result(db_query("SELECT * from {flag_lists} f WHERE f.uid = %d", $account->uid))) {
-          return array('flag_lists' => TRUE);
-        }
-        else {
-          return array('flag_lists' => FALSE);
-        }
+      if (db_result(db_query("SELECT * from {flag_lists_flags} f WHERE f.uid = %d", $account->uid))) {
+        return array('flag_lists' => TRUE);
+      }
+      else {
+        return array('flag_lists' => FALSE);
       }
   }
 }
@@ -387,8 +403,19 @@ function flag_lists_flag_alter(&$flag) {
  * This is not in flag yet.
  */
 function flag_lists_flag_delete(&$flag) {
-  // Flag is being deleted. Clean up our table.
-  db_query("DELETE FROM {flag_lists} WHERE fid = %d", $flag->fid);
+  // Template flag is being deleted. Clean up our tables.
+  // Collect the sub-flag fids so we can delete counts and content records.
+  $fids = db_fetch_array(db_query("SELECT fid, name from {flag_lists_flags} WHERE pfid = %d", $flag->fid));
+  if (count($fids)) {
+    foreach ($fids as $fid) {
+      db_query("DELETE FROM {flag_lists_counts} WHERE fid = %d", $fid['fid']);
+      db_query("DELETE FROM {flag_lists_content} WHERE fid = %d", $fid['fid']);
+      db_query("DELETE FROM {flag_lists_types} WHERE name = '%s'", $fid['name']);
+    }
+    // Now delete the sub-flags.
+    db_query("DELETE FROM {flag_lists_flags} WHERE pfid = %d", $flag->fid);
+    drupal_set_message(t('The template flag @title and all its sub-flags have been deleted.', array('@title' => $flag->title)));
+  }
 }
 
 /**
@@ -401,25 +428,16 @@ function flag_lists_flag_delete(&$flag) {
 //  );
 //}
 
-/**
- * Helper function to test if a flag is a personal flag.
- */
-function flag_lists_is_list($fid) {
-  if (db_result(db_query("SELECT * from {flag_lists} f WHERE f.fid = %d", $fid))) {
-    return TRUE;
-  }
-  return FALSE;
-}
 
 /**
  * Helper function to test if a flag is owned by the current user.
  */
-function flag_lists_is_owner($fid, $action = NULL) {
+function flag_lists_is_owner($action, $name) {
   global $user;
-  if (!is_numeric($fid) || is_null($fid) || !user_access($action .' own flag lists')) {
+  if (!user_access($action .' own flag lists')) {
     return FALSE;
   }
-  if (db_result(db_query("SELECT * from {flag_lists} f WHERE f.fid = %d AND f.uid = %d", $fid, $user->uid))) {
+  if (db_result(db_query("SELECT * from {flag_lists_flags} f WHERE f.name = '%s' AND f.uid = %d", $name, $user->uid))) {
     return TRUE;
   }
   return FALSE;
@@ -429,17 +447,19 @@ function flag_lists_is_owner($fid, $action = NULL) {
  * Get a single user's flag lists.
  */
 function flag_lists_get_user_flags($content_type = NULL, $user = NULL) {
+  $flags = array();
   if (!$user) {
     global $user;
   }
-
-  $sql = "SELECT f.*, fn.type from {flags} f
-          LEFT JOIN {flag_lists} fc ON f.fid = fc.fid
-          LEFT JOIN {flag_types} fn on fn.fid = f.fid
-          WHERE fc.uid = %d";
+  // Get flag lists flags
+  $sql = "SELECT fl.*, ft.type from {flag_lists_flags} fl
+    LEFT JOIN {flags} f on fl.pfid = f.fid
+    LEFT JOIN {flag_lists_types} ft on ft.name = f.name
+          WHERE fl.uid = %d";
   if ($content_type) {
-    $sql .= " AND fn.type = '%s'";
+    $sql .= " AND ft.type = '%s'";
   }
+  $sql .= " GROUP BY fl.fid";
   $result = db_query($sql, $user->uid, $content_type);
   while ($row = db_fetch_object($result)) {
     if (!isset($flags[$row->name])) {
@@ -449,7 +469,11 @@ function flag_lists_get_user_flags($content_type = NULL, $user = NULL) {
       $flags[$row->name]->types[] = $row->type;
     }
   }
-  return $flags;
+
+  // Get regular flags.
+//   $flags = array_merge($flags, flag_get_flags('node', $content_type, $user));
+
+    return $flags;
 }
 
 // @todo Separate out the code from the theming better.
@@ -459,38 +483,51 @@ function theme_flag_lists_list($node, $create = TRUE, $ops = TRUE) {
     $content_type = $node->type;
     $content_id = $node->nid;
   }
+  // Or at least where on a node page.
   elseif (arg(0) == 'node' && is_numeric(arg(1)) && is_null(arg(2)) && user_access('create flag lists')) {
     $content_id = arg(1);
     $content_type = db_result(db_query("SELECT type from {node} WHERE nid = %d", $content_id));
   }
   else {
-    return NULL;
+    return;
   }
+
+  // Do we have a list template for this node type?
+  if (!flag_lists_template_exists($content_type)) {
+    return;
+  }
+  
   global $user;
   if ($flags = flag_lists_get_user_flags($content_type)) {
     // Build the list of flag lists for this node.
     foreach ($flags as $flag) {
       if ($ops) {
         $ops = theme('links', array(
-          'flags_edit' =>  array( 'title' => t('edit'), 'href' => 'admin/build/flags/lists/edit/'. $flag->fid .'/'. $flag->name, 'query' => drupal_get_destination()),
-          'flags_delete' =>  array( 'title' => t('delete'), 'href' => 'admin/build/flags/lists/delete/'. $flag->fid, 'query' => drupal_get_destination()),
+          'flags_edit' =>  array( 'title' => t('edit'), 'href' => 'admin/build/flag_lists/edit/'. $flag->name, 'query' => drupal_get_destination()),
+          'flags_delete' =>  array( 'title' => t('delete'), 'href' => 'admin/build/flag_lists/delete/'. $flag->name, 'query' => drupal_get_destination()),
         ));
       }
-      $items[] = $flag->theme($flag->_is_flagged($content_id, $user->uid, 0) ? 'unflag' : 'flag', $content_id) . $ops;
+      $action = _flag_lists_is_flagged($flag, $content_id, $user->uid, 0) ? 'unflag' : 'flag';
+      $link = $flag->theme($action, $content_id) . $ops;
+      flag_lists_fix_link($link, $action);
+      $items[] = $link;
     }
   }
   if ($create) {
-    $items[] = l(t('Make a new @name list', array('@name' => variable_get('flag_lists_name', t('Flags')))), 'admin/build/flags/lists/add/'. $content_type, array('query' => drupal_get_destination()));
+    $items[] = l(t('Make a new @name', array('@name' => variable_get('flag_lists_name', t('list')))), 'admin/build/flag_lists/add/'. $content_type, array('query' => drupal_get_destination()));
   }
   drupal_add_css(drupal_get_path('module', 'flag_lists') .'/theme/flag_lists.css');
   return theme(item_list, $items);
 }
 
+
+// Do we still need this, and/or do we need our own cache?
 /**
  * Clear the flag cache.
  *
  * This is a less severe cache clear than provided by flag. All flag lists
- * users must be authorized, so we don't need to flush the page and menu caches.
+ * users must be authorized, so we don't need to flush the page cache. For now,
+ * flag lists titles won't be in the menu, so no need to clear that.
  */
 function _flag_lists_clear_cache() {
   // We're not using _flag_clear_cache because we probably don't need the menu
@@ -498,9 +535,6 @@ function _flag_lists_clear_cache() {
   if (module_exists('views')) {
     views_invalidate_cache();
   }
-  // Reset our flags cache, thereby making the following code aware of the
-  // modifications.
-  flag_get_flags(NULL, NULL, NULL, TRUE);
 }
 
 /**
@@ -510,8 +544,8 @@ function flag_lists_rebuild() {
   $flags = flag_lists_get_flags();
   foreach ($flags as $flag) {
     flag_lists_set_messages($flag);
-    $flag->link_type = variable_get('flag_lists_link_type', 'toggle');
-    $flag->save();
+    $flag->link_type = 'toggle';
+    flag_lists_save($flag);
   }
 }
 
@@ -521,10 +555,7 @@ function flag_lists_rebuild() {
  * Using this instead of flag_get_flags() for performance.
  */
 function flag_lists_get_flags() {
-  $result = db_query("SELECT f.*, fn.type, fl.uid
-    FROM {flag_lists} fl
-    LEFT JOIN {flag_types} fn ON fn.fid = fl.fid
-    LEFT JOIN {flags} f ON fl.fid = f.fid");
+  $result = db_query("SELECT * FROM {flag_lists_flags} fl LEFT JOIN {flag_types} ft on ft.fid = fl.pfid");
   while ($row = db_fetch_object($result)) {
     if (!isset($flags[$row->name])) {
       $flags[$row->name] = flag_flag::factory_by_row($row);
@@ -543,13 +574,19 @@ function flag_lists_get_flags() {
  * Using this instead of flag_get_flag() for performance.
  */
 function flag_lists_get_flag($fid) {
-  $result = db_fetch_object(db_query("SELECT f.*, fn.type, fl.uid
-      FROM {flag_lists} fl
-      LEFT JOIN {flag_types} fn ON fn.fid = fl.fid
-      LEFT JOIN {flags} f ON fl.fid = f.fid
-      WHERE f.fid = %d", $fid));
-    $flag = flag_flag::factory_by_row($result);
-    $flag->uid = $result->uid;
+  // If we don't have an fid, then we have the flag name.
+  if (!is_numeric($fid)) {
+    $fid = db_result(db_query("SELECT fid from {flag_lists_flags} WHERE name = '%s'", $fid));
+  }
+  $result = db_query("SELECT fl.*, ft.type FROM {flag_lists_flags} fl LEFT JOIN {flag_types} ft on ft.fid = fl.pfid WHERE fl.fid = %d", $fid);
+    while ($row = db_fetch_object($result)) {
+      if (!isset($flag->name)) {
+        $flag = flag_flag::factory_by_row($row);
+      }
+      else {
+        $flag->types[] = $row->type;
+      }
+    }
   return $flag;
 }
 
@@ -561,16 +598,354 @@ function flag_lists_get_flag($fid) {
  * @param
  *   The flag name for which to retrieve flagged content.
  */
-function flag_lists_get_flagged_content($fid) {
+function flag_lists_get_flagged_content($fid, $uid) {
   $return = array();
   $flag = flag_lists_get_flag($fid);
-  $result = db_query("SELECT * FROM {flag_content} WHERE fid = %d", $flag->fid);
+  $result = db_query("SELECT * FROM {flag_lists_content} WHERE fid = %d AND uid = %d", $flag->fid, $uid);
   while ($row = db_fetch_object($result)) {
     $return[] = $row;
   }
   return $return;
 }
 
-function flag_lists_user_title($uid) {
-  return(t('@name lists', array('@name' => variable_get('flag_lists_name', t('Flags')))));
+
+/**
+ * Implementation of hook_flag_link().
+ *
+ * When Flag uses a link type provided by this module, it will call this
+ * implementation of hook_flag_link(). It returns a single link's attributes,
+ * using the same structure as hook_link(). Note that "title" is provided by
+ * the Flag configuration if not specified here.
+ *
+ * @param $flag
+ *   The full flag object of for the flag link being generated.
+ * @param $action
+ *   The action this link will perform. Either 'flag' or 'unflag'.
+ * @param $content_id
+ *   The ID of the node, comment, user, or other object being flagged.
+ * @return
+ *   An array defining properties of the link.
+ */
+function flag_lists_flag_link($flag, $action, $content_id) {
+  $token = flag_get_token($content_id);
+  return array();
+}
+
+/**
+ * Implementation of hook_flag_link_types().
+ */
+function flag_lists_flag_link_types() {
+  return array(
+    'fl_template' => array(
+      'title' => t('Flag Lists template'),
+      'description' => t('If you are creating a Flag lists template flag, you must select this link type. '),
+    ),
+  );
+}
+
+
+function flag_lists_flag_default_flags($name = 'fl_template') {
+  return array(
+    array(
+      'api_version' => 2,
+      'name' => $name,
+      'module' => 'flag_lists',
+      'content_type' => 'node',
+      'global' => 0,
+      'show_on_page' => 0,
+      'show_on_teaser' => 0,
+      'show_on_form' => 0,
+      // The following UI labels aren't wrapped in t() because they are written
+      // to the DB in English. They are passed to t() later, thus allowing for
+      // multilingual sites.
+      'title' => 'Flag lists template',
+      'flag_short' => 'Add to your',
+      'flag_long' => 'Add this post to your',
+      'flag_message' => 'This post has been added to your',
+      'unflag_short' => 'Remove this from your',
+      'unflag_long' => 'Remove this post from your',
+      'unflag_message' => 'This post has been removed from your',
+      'types' => array(),
+      'link_type' => 'fl_template',
+    ),
+  );
+}
+
+/**
+ * Saves a flag to the database. It is a wrapper around update($flag) and insert($flag).
+ */
+function flag_lists_save(&$flag) {
+  if (isset($flag->fid)) {
+    flag_lists_update($flag);
+    $flag->is_new = FALSE;
+  }
+  else {
+    flag_lists_insert($flag);
+    $flag->is_new = TRUE;
+  }
+  // Clear the page cache for anonymous users.
+//    cache_clear_all('*', 'cache_page', TRUE);
+}
+
+/**
+ * Saves an existing flag to the database. Better use save($flag).
+ */
+function flag_lists_update($flag) {
+  db_query("UPDATE {flag_lists_flags} SET title = '%s', name = '%s', options = '%s' WHERE fid = %d", $flag->title, $flag->name, $flag->get_serialized_options($flag), $flag->fid);
+}
+
+/**
+ * Saves a new flag to the database. Better use save($flag).
+ */
+function flag_lists_insert($flag) {
+  db_query("INSERT INTO {flag_lists_flags} (pfid, uid, content_type, name, title, options) VALUES (%d, %d, '%s', '%s', '%s', '%s')",             $flag->pfid, $flag->uid, $flag->content_type, $flag->name, $flag->title, $flag->get_serialized_options($flag));
+  $flag->fid = db_last_insert_id('flags', 'fid');
+  $flag->name = 'flag_lists_'. $flag->uid .'_'. $flag->fid;
+  flag_lists_update($flag);
+
+}
+
+/**
+ * Delete a flag_lists flag.
+ *
+ */
+function flag_lists_fl_delete($flag) {
+  db_query("DELETE FROM {flag_lists_counts} WHERE fid = %d", $flag->fid);
+  db_query("DELETE FROM {flag_lists_content} WHERE fid = %d", $flag->fid);
+  db_query("DELETE FROM {flag_lists_flags} WHERE fid = %d", $flag->fid);
+  drupal_set_message(t('The flag @title has been deleted.', array('@title' => $flag->title)));
+}
+
+
+/**
+ * Menu callback for (un)flagging a node.
+ *
+ * Used both for the regular callback as well as the JS version. We use this
+ * instead of the flag module's because our flags are not in the flags table.
+ */
+function flag_lists_page($action = NULL, $flag_name = NULL, $content_id = NULL) {
+  global $user;
+
+  // Shorten up the variables that affect the behavior of this page.
+  $js = isset($_REQUEST['js']);
+  $token = $_REQUEST['token'];
+
+  // Specifically $_GET to avoid getting the $_COOKIE variable by the same key.
+  $has_js = isset($_GET['has_js']);
+
+  // Check the flag token, then perform the flagging.
+  if (!flag_check_token($token, $content_id)) {
+    $error = t('Bad token. You seem to have followed an invalid link.');
+  }
+  elseif ($user->uid == 0 && !$has_js) {
+    $error = t('You must have JavaScript and cookies enabled in your browser to flag content.');
+  }
+  else {
+    if (!($flag = flag_lists_get_flag($flag_name))) {
+      // Flag does not exist.
+      $error = t('You are not allowed to flag, or unflag, this content.');
+    }
+    flag_lists_do_flag($flag, $action, $content_id);
+  }
+
+  // If an error was received, set a message and exit.
+  if (isset($error)) {
+    if ($js) {
+      drupal_set_header('Content-Type: text/javascript; charset=utf-8');
+      print drupal_to_js(array(
+        'status' => FALSE,
+        'errorMessage' => $error,
+      ));
+      exit;
+    }
+    else {
+      drupal_set_message($error);
+      drupal_access_denied();
+      return;
+    }
+  }
+
+  // If successful, return data according to the request type.
+  if ($js) {
+    drupal_set_header('Content-Type: text/javascript; charset=utf-8');
+//    $flag = flag_lists_get_flag($flag_name);
+ //   $flag->link_type = 'toggle';
+    $sid = flag_get_sid($user->uid);
+    $new_action = _flag_lists_is_flagged($flag, $content_id, $user->uid, $sid) ? 'unflag' : 'flag';
+    $new_link = $flag->theme($new_action, $content_id, TRUE);
+    flag_lists_fix_link($new_link, $new_action);
+    print drupal_to_js(array(
+      'status' => TRUE,
+      'newLink' => $new_link,
+      // Further information for the benefit of custom JavaScript event handlers:
+      'contentId' => $content_id,
+      'contentType' => $flag->content_type,
+      'flagName' => $flag->name,
+      'flagStatus' => $action,
+    ));
+    exit;
+  }
+  else {
+    $flag = flag_lists_get_flag($flag->fid);
+    drupal_set_message($flag->get_label($action . '_message', $content_id));
+    drupal_goto();
+  }
+}
+
+function flag_lists_fix_link(&$link, $action) {
+  // This is a hack to let us use our own flag/unflag callbacks without having
+  // to override $flag->theme and creating our own flag_link type.
+  $link = str_replace('/flag/'. $action .'/', '/flag-lists/'. $action .'/', $link);
+}
+
+
+
+
+
+
+  /**
+   * Flags, or unflags, an item.
+   *
+   * @param $action
+   *   Either 'flag' or 'unflag'.
+   * @param $content_id
+   *   The ID of the item to flag or unflag.
+   * @param $account
+   *   The user on whose behalf to flag. Leave empty for the current user.
+   * @param $skip_permission_check
+   *   Flag the item even if the $account user don't have permission to do so.
+   * @return
+   *   FALSE if some error occured (e.g., user has no permission, flag isn't
+   *   applicable to the item, etc.), TRUE otherwise.
+   */
+  function flag_lists_do_flag($flag, $action, $content_id, $account = NULL, $skip_permission_check = FALSE) {
+    if (!isset($account)) {
+      $account = $GLOBALS['user'];
+    }
+    if (!$account) {
+      return FALSE;
+    }
+    if (!$skip_permission_check) {
+      if (!$flag->access($content_id, $action, $account)) {
+        // User has no permission to flag/unflag this object.
+        return FALSE;
+      }
+    }
+    else {
+      // We are skipping permission checks. However, at a minimum we must make
+      // sure the flag applies to this content type:
+      if (!$flag->applies_to_content_id($content_id)) {
+        return FALSE;
+      }
+    }
+
+    // Clear various caches; We don't want code running after us to report
+    // wrong counts or false flaggings.
+//    flag_get_counts(NULL, NULL, TRUE);
+//    flag_get_user_flags(NULL, NULL, NULL, NULL, TRUE);
+
+    // Find out which user id to use.
+    $uid = $flag->global ? 0 : $account->uid;
+
+    $sid = flag_get_sid($uid);
+    // Anonymous users must always have a session id.
+    if ($sid == 0 && $account->uid == 0) {
+      return FALSE;
+    }
+
+    // Perform the flagging or unflagging of this flag.
+    $flagged = _flag_lists_is_flagged($flag, $content_id, $uid, $sid);
+    if ($action == 'unflag') {
+      if ($flagged) {
+        $fcid = _flag_lists_unflag($flag, $content_id, $uid, $sid);
+//        module_invoke_all('flag', 'unflag', $this, $content_id, $account, $fcid);
+      }
+    }
+    elseif ($action == 'flag') {
+      if (!$flagged) {
+        $fcid = _flag_lists_flag($flag, $content_id, $uid, $sid);
+//        module_invoke_all('flag', 'flag', $this, $content_id, $account, $fcid);
+      }
+    }
+
+    return TRUE;
+  }
+
+
+  /**
+   * Returns TRUE if a certain user has flagged this content.
+   *
+   *
+   * This method is similar to is_flagged() except that it does direct SQL and
+   * doesn't do caching. Use it when you want to not affect the cache, or to
+   * bypass it.
+   *
+   * @private
+   */
+  function _flag_lists_is_flagged($flag, $content_id, $uid, $sid) {
+    return db_result(db_query("SELECT fid FROM {flag_lists_content} WHERE fid = %d AND uid = %d AND sid = %d AND content_id = %d", $flag->fid, $uid, $sid, $content_id));
+  }
+
+  /**
+   * A low-level method to flag content.
+   *
+   * You probably shouldn't call this raw private method: call the flag()
+   * function instead.
+   *
+   */
+  function _flag_lists_flag($flag, $content_id, $uid, $sid) {
+    db_query("INSERT INTO {flag_lists_content} (fid, content_type, content_id, uid, sid, timestamp) VALUES (%d, '%s', %d, %d, %d, %d)", $flag->fid, $flag->content_type, $content_id, $uid, $sid, time());
+    $fcid = db_last_insert_id('flag_lists_content', 'fcid');
+    _flag_lists_update_count($flag, $content_id);
+    return $fcid;
+  }
+
+  /**
+   * A low-level method to unflag content.
+   *
+   * You probably shouldn't call this raw private method: call the flag()
+   * function instead.
+   *
+   */
+  function _flag_lists_unflag($flag, $content_id, $uid, $sid) {
+    $fcid = db_result(db_query("SELECT fcid FROM {flag_lists_content} WHERE fid = %d AND content_id = %d AND uid = %d AND sid = %d", $flag->fid, $content_id, $uid, $sid));
+    if ($fcid) {
+      db_query("DELETE FROM {flag_lists_content} WHERE fcid = %d", $fcid);
+      _flag_lists_update_count($flag, $content_id);
+    }
+    return $fcid;
+  }
+
+  /**
+   * Updates the flag count for this content
+   */
+  function _flag_lists_update_count($flag, $content_id) {
+    $count = db_result(db_query("SELECT COUNT(*) FROM {flag_lists_content} WHERE fid = %d AND content_id = %d", $flag->fid, $content_id));
+    if ($count == 0) {
+      db_query("DELETE FROM {flag_lists_counts} WHERE fid = %d AND content_id = %d", $flag->fid, $content_id);
+    }
+    else {
+      db_query("UPDATE {flag_lists_counts} SET count = %d WHERE fid = %d AND content_id = %d", $count, $flag->fid, $content_id);
+      if (!db_affected_rows()) {
+        db_query("INSERT INTO {flag_lists_counts} (fid, content_type, content_id, count) VALUES (%d, '%s', %d, %d)", $flag->fid, $flag->content_type, $content_id, $count);
+      }
+    }
+  }
+
+/**
+ * Checks for a list template for a content type.
+ */
+function flag_lists_template_exists($type) {
+  if ($exists = db_result(db_query("SELECT type from {flag_lists_types} WHERE type = '%s'", $type))) {
+    return TRUE;
+  }
+  return FALSE;
+}
+
+/**
+ * Checks for a list title by node type.
+ */
+function flag_lists_title_exists($title, $type) {
+  global $user;
+  return db_result(db_query("SELECT COUNT(*) FROM {flag_lists_flags} fl LEFT JOIN {flag_types} ft ON fl.pfid = ft.fid WHERE fl.title = '%s' AND ft.type = '%s' AND fl.uid = %d", $title, $type, $user->uid));
 }
