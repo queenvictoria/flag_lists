@@ -10,42 +10,60 @@
  * Flag administration page. Display a list of existing flags.
  */
 function flag_lists_admin_page() {
-  $flags = flag_lists_get_flags();
-  return theme('flag_lists_admin_page', $flags);
+  return theme('flag_lists_admin_page');
 }
 
 /**
  * Theme the output for the main flag administration page.
  */
-function theme_flag_lists_admin_page($flags) {
+function theme_flag_lists_admin_page() {
   drupal_set_title(t('Flag lists'));
-  $output = '<p>' . t('This page lists all the <em>flag lists</em> that are currently defined on this system.') . '</p>';
+  $output = '<p>' . t('This page shows all the <em>lists</em> that are currently defined on this system.') . '</p>';
 
-  // Build the list of normal, database flags.
-  foreach ($flags as $flag) {
-    $ops = theme('links', array(
-      'flags_edit' =>  array('title' => t('edit'), 'href' => 'admin/build/flag_lists/edit/'. $flag->name, 'query' => drupal_get_destination()),
-      'flags_delete' =>  array('title' => t('delete'), 'href' => 'admin/build/flag_lists/delete/' . $flag->name, 'query' => drupal_get_destination()),
-    ));
-    $name = db_result(db_query("SELECT name from {users} WHERE uid = %d", $flag->uid));
-    $user = l($name, 'user/'. $flag->uid, array('attributes' => array('title' => t('View user profile.'))));
-    $rows[] = array(
-      $flag->name,
-      $flag->title,
-      $flag->content_type,
-      $user,
-      $flag->types ? implode(', ', $flag->types) : '-',
-      $ops,
-    );
-  }
-  if (!$flags) {
-    $rows[] = array(
-      array('data' => t('No flags are currently defined.'), 'colspan' => 6),
-    );
+  // Can we use our default view?
+  if (module_exists('views')) {
+    views_include('view');
+    $view = view::load('flag_lists', FALSE);
+    $default_view = views_get_default_view('flag_lists');
+    if (!empty($view) || !empty($default_view)) {
+      $output .= views_embed_view('flag_lists');
+    }
   }
 
-  $header = array(t('List'), t('List title'), t('List type'), t('Owner'), t('Node types'), t('Operations'));
-  $output .= theme('table', $header, $rows);
+  // Else build a simplified display.
+  else {
+    $header = array(
+      array('data' => t('List'), 'field' => 'name'),
+      array('data' => t('List title'), 'field' => 'title'),
+      array('data' => t('List type')),
+      array('data' => t('Owner'), 'field' => 'uid'),
+      array('data' => t('Node types')),
+      array('data' => t('Operations')),
+    );
+    $flags = flag_lists_get_flags(25, $header);
+    foreach ($flags as $flag) {
+      $ops = theme('flag_lists_ops', $flag);
+
+      $name = db_result(db_query("SELECT name from {users} WHERE uid = %d", $flag->uid));
+      $user = l($name, 'user/'. $flag->uid, array('attributes' => array('title' => t('View user profile.'))));
+      $rows[] = array(
+        $flag->name,
+        $flag->title,
+        $flag->content_type,
+        $user,
+        $flag->types ? implode(', ', $flag->types) : '-',
+        $ops,
+      );
+    }
+    if (!$flags) {
+      $rows[] = array(
+        array('data' => t('No flags are currently defined.'), 'colspan' => 6),
+      );
+    }
+
+    $output .= theme('table', $header, $rows);
+    $output .= theme('pager', NULL, 25, 0);
+  }
 
   return $output;
 }
@@ -67,10 +85,13 @@ function flag_lists_form(&$form_state, $name = NULL, $type = NULL) {
   if (is_null($name) && is_null($type)) {
     drupal_access_denied();
   }
-  if (!flag_lists_template_exists($type) && !is_null($name)) {
+  if (!flag_lists_template_exists($type) && is_null($name)) {
     return;
   }
-
+  // If name is numeric, then we have the fid, so get the name.
+  if (is_numeric($name)) {
+    $name = db_result(db_query("SELECT name from {flag_lists_flags} WHERE fid = %s", $name));
+  }
   // Adding a new list.
   if (!isset($name)) {
     drupal_set_title(t('Add a new list'));
@@ -258,13 +279,14 @@ function flag_lists_delete_confirm_submit($form, &$form_state) {
  * Form to create a new template.
  */
 function flag_lists_create_template_form(&$form_state) {
+  drupal_set_title(t('Add a new list template'));
   $form['help'] = array(
     '#value' => t('This form creates a new, blank list template. After saving, you will be able to configure further options.'),
   );
   $form['name'] = array(
     '#type' => 'textfield',
     '#title' => t('Template name'),
-    '#description' => t('The machine-name for this flag. It may be up to 32 characters long and my only contain lowercase letters, underscores, and numbers.'),
+    '#description' => t('The machine-name for this template. It may be up to 32 characters long and my only contain lowercase letters, underscores, and numbers.'),
     '#maxlength' => 255,
     '#required' => TRUE,
   );
@@ -298,8 +320,9 @@ function flag_lists_create_template_form_validate($form, &$form_state) {
  * New template submit.
  */
 function flag_lists_create_template_form_submit($form, &$form_state) {
-  $template = flag_lists_flag_default_flags($form_state['values']['name'] .'_fl_template');
+  $template = flag_lists_flag_default_flags('fl_template_'. $form_state['values']['name']);
   $flag = flag_flag::factory_by_array($template[0]);
+  $flag->title = t('List template '). $form_state['values']['name'];
   $flag->save();
   // Enter the new template into flag_lists_types.
   db_query("INSERT INTO {flag_lists_types} (name) VALUES ('%s')", $flag->name);

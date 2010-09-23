@@ -1,0 +1,14 @@
+Flag lists (Sept. 22, 2010)
+=====
+code cleanup
+fix hook_flag_delete
+Change template names from name_fl_template to fl_template_name.
+Text changes in template form.
+Page title change for template form.
+flag_lists_form will take list fid or name.
+Use fids on list edit links
+change menu paths for edit, delete
+improve some messages
+allow users with "administer flags" permission to bypass flag_lists_is_owner() checks.
+First run at views integration
+Better admin table for lists
