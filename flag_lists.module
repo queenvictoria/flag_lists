@@ -84,7 +84,7 @@ function flag_lists_menu() {
     'file' => 'flag_lists.admin.inc',
     'type' => MENU_CALLBACK,
   );
-  $items['admin/build/flags_lists/rebuild'] = array(
+  $items['admin/build/flag_lists/rebuild'] = array(
     'title' => 'Rebuild all flag lists',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('flag_lists_rebuild_confirm'),
