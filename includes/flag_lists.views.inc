@@ -38,6 +38,10 @@ function flag_lists_views_handlers() {
         'parent' => 'views_handler_filter_in_operator',
         'file' => 'flag_lists_handler_filter_template.inc',
       ),
+      'flag_lists_handler_argument_fid' => array(
+        'parent' => 'views_handler_argument_numeric',
+        'file' => 'flag_lists_handler_argument_fid.inc',
+    ),
     ),
   );
 }
@@ -98,6 +102,22 @@ function flag_lists_views_data_alter(&$data) {
       ),
     ),
   );
+
+  // Add the checkbox for flagging nodes VBO style, minus batch API
+  foreach (entity_get_info() as $entity_type => $info) {
+    if (isset($info['base table']) && $info['base table'] == 'node' && isset($data[$info['base table']])) {
+      $data[$info['base table']]['flag_lists_ops'] = array(
+        'title' => t('Flag lists operations'),
+        'help' => t('Provide a checkbox to select the row for flag lists operations.'),
+        'real field' => $info['entity keys']['id'],
+        'field' => array(
+          'handler' => 'flag_lists_handler_field_ops',
+          'click sortable' => FALSE,
+        ),
+      );
+      break;
+    }
+  }
 }
 
 /**
@@ -128,7 +148,7 @@ function flag_lists_views_data() {
     ),
     'fid' => array(
       'title' => t('fid'),
-      'help' => t('Flag list id'),
+      'help' => t('Flag list id, required for Flag lists operationis\'s "unflag" action.'),
       'field' => array(
         'handler' => 'flag_lists_handler_field_list',
         'click sortable' => TRUE,
@@ -138,7 +158,7 @@ function flag_lists_views_data() {
         'allow empty' => TRUE,
       ),
       'argument' => array(
-        'handler' => 'views_handler_argument_numeric',
+        'handler' => 'flag_lists_handler_argument_fid',
       ),
       'sort' => array(
         'handler' => 'views_handler_sort',
@@ -310,4 +330,3 @@ function flag_lists_views_data() {
   );
   return $data;
 }
-?>

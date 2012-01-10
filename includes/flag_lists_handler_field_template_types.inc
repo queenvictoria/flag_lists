@@ -1,5 +1,6 @@
 <?php
 /**
+ * @file flag_lists_handler_field_template_types.inc
  * Field handler to provide a list of template node types.
  */
 class flag_lists_handler_field_template_types extends views_handler_field_prerender_list {
@@ -20,11 +21,45 @@ class flag_lists_handler_field_template_types extends views_handler_field_preren
       $names[] = $result->{$this->aliases['name']};
     }
 
-    if ($names) {
-      $result = db_query("SELECT flt.type, flt.name FROM {flag_lists_types} flt INNER JOIN {flags} f ON flt.name = f.name WHERE f.name IN ('" . implode('\', \'', $names) . "') ORDER BY flt.type");
-      while ($type = db_fetch_object($result)) {
+    if (count($names)) {
+      $query = db_select('flag_lists_types', 'flt');
+      $query->innerJoin('flags', 'f', 'flt.name = f.name');
+      $result = $query->fields('flt', array('type', 'name'))
+        ->condition('f.name', $names, 'IN')
+        ->orderBy('flt.type')
+        ->execute();
+      foreach ($result as $type) {
         $this->items[$type->name][$type->type] = check_plain($type->type);
       }
     }
+  }
+
+  function render($values) {
+    $field = $values->{$this->field_alias};
+    if (!empty($this->items[$field])) {
+      if ($this->options['type'] == 'separator') {
+        return implode($this->sanitize_value($this->options['separator']), $this->items[$field]);
+      }
+      else {
+        return theme('item_list',
+          array(
+            'items' => $this->items[$field],
+            'title' => NULL,
+            'type' => $this->options['type']
+          ));
+      }
+    }
+  }
+
+  function get_value($values, $field = NULL, $raw = FALSE) {
+    if ($raw) {
+      return parent::get_value($values, $field);
+    }
+    $item = $this->get_items($values);
+    $item = (array) $item;
+    if (isset($field) && isset($item[$field])) {
+      return $item[$field];
+    }
+    return $item;
   }
 }
