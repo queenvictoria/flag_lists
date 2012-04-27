@@ -218,7 +218,7 @@ function theme_flag_lists_user_list($variables) {
       $items[] = l($node->title, 'node/' . $node->nid);
     }
   }
-  
+
   $breadcrumb = menu_get_active_breadcrumb();
   $breadcrumb[] = l(t('@name lists', array('@name' => drupal_ucfirst(variable_get('flag_lists_name', t('lists'))))), 'user/' . arg(1) . '/flags/lists');
   drupal_set_breadcrumb($breadcrumb);
@@ -443,7 +443,7 @@ function flag_lists_ops_form($form, &$form_state, $flo) {
     $hidden_deleted_values = '';
     foreach ($ops as $nid) {
       $hidden_deleted_values .= '<input type="hidden" class="flo-deleted-value" value="' . $nid . '" />';
-    } 
+    }
   }
 
   $form['flag_lists']['operation'] = array(
@@ -690,7 +690,11 @@ function flag_lists_get_content_fids() {
 function flag_lists_block_info() {
   return array(
     'flag_lists' => array(
-      'info' => t('Lists'), 
+      'info' => t('Lists'),
+      'cache' => DRUPAL_NO_CACHE,
+    ),
+    'flag_lists_list' => array(
+      'info' => t('My lists'),
       'cache' => DRUPAL_NO_CACHE,
     ),
   );
@@ -754,6 +758,17 @@ function flag_lists_block_view($delta = '') {
         $block = array(
           'subject' => t('My lists'),
           'content' => theme('flag_lists_list', array('node' => NULL, 'create' => variable_get('flag_lists_create_lists', 0), 'ops' =>variable_get('flag_lists_ops', 0), 'use_flags' => variable_get('flag_lists_include_flags', 0))),
+        );
+      }
+      break;
+    case 'flag_lists_list':
+      if (user_access('create flag lists')) {
+        global $user;
+        $account = user_load($user->uid);
+
+        $block = array(
+          'subject' => t('My lists'),
+          'content' => flag_lists_user_page($account),
         );
       }
       break;
@@ -887,7 +902,7 @@ function flag_lists_is_owner($action, $name) {
   if (user_access('administer flags')) {
     return TRUE;
   }
-  
+
   // If we don't have an fid, then we have the flag name.
   if (is_numeric($name)) {
     $query = db_select('flag_lists_flags', 'f')->condition('fid', $name);
@@ -923,7 +938,7 @@ function flag_lists_get_user_flags($content_type = NULL, $account = NULL, $use_f
   if ($content_type) {
     $query->condition('ft.type', $content_type);
   }
-  
+
   $result = $query->execute();
   foreach ($result as $row) {
     if (!isset($lists[$row->name])) {
@@ -934,7 +949,7 @@ function flag_lists_get_user_flags($content_type = NULL, $account = NULL, $use_f
       $lists[$row->name]->types[] = $row->type;
     }
   }
-  // Get regular flags. 
+  // Get regular flags.
   if ($use_flags) {
     $flags = flag_get_flags('node', $content_type, $account);
 
@@ -1608,22 +1623,22 @@ function flag_lists_get_templates() {
  */
 function flag_lists_token_info() {
   $type = array(
-    'name' => t('Flag lists'), 
-    'description' => t('Tokens related to flag lists.'), 
+    'name' => t('Flag lists'),
+    'description' => t('Tokens related to flag lists.'),
     'needs-data' => 'flag_lists',
   );
 
   $flag_lists['term'] = array(
-    'name' => t("Term"), 
+    'name' => t("Term"),
     'description' => t("The terminology used to name the lists, such as list, wishlist, favorites, etc."),
   );
   $flag_lists['title'] = array(
-    'name' => t("Title"), 
+    'name' => t("Title"),
     'description' => t("The title of the list."),
   );
 
   return array(
-    'types' => array('flag_lists' => $type), 
+    'types' => array('flag_lists' => $type),
     'tokens' => array('flag_lists' => $flag_lists),
   );
 }
