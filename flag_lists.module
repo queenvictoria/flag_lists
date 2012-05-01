@@ -396,7 +396,7 @@ function flag_lists_ops_form($form, &$form_state, $flo) {
         '#value' => t('Remove from list'),
         '#ajax' => array(
           'callback' => 'flag_lists_ops_form_ajax_callback',
-          'wrapper' => 'flag_lists_ops_status_message',
+          'wrapper' => 'flag-list-ops-container',
         ),
       );
       break;
@@ -409,7 +409,7 @@ function flag_lists_ops_form($form, &$form_state, $flo) {
         '#options' => array('0' => t('- ' . $null_text . ' -')) + $items,
         '#ajax' => array(
          'callback' => 'flag_lists_ops_form_ajax_callback',
-         'wrapper' => 'flag_lists_ops_status_message',
+         'wrapper' => 'flag-list-ops-container',
         ),
         '#attributes' => array(
           'class' => array(
@@ -462,9 +462,9 @@ function flag_lists_ops_form($form, &$form_state, $flo) {
   // Generate a status message for AJAX submission.
   $form['flag_lists']['status_message'] = array(
     '#markup' => '',
-    '#prefix' => '<div id="flag_lists_ops_status_message" class="flag-lists-ops-status-message">',
-    '#suffix' => (!empty($hidden_deleted_values)) ? $hidden_deleted_values : '' . '</div>',
   );
+  $form['flag_lists']['#prefix'] = '<div id="flag-list-ops-container" class="flag-list-ops-container">';
+  $form['flag_lists']['#suffix'] = (!empty($hidden_deleted_values)) ? $hidden_deleted_values : '' . '</div>';
 
   return $form;
 }
@@ -478,7 +478,7 @@ function flag_lists_ops_form_ajax_callback($form, $form_state) {
 
   $form['flag_lists']['status_message']['#markup'] = '<div class="message">' . $message . '</div>';
 
-  return $form['flag_lists']['status_message'];
+  return $form['flag_lists'];
 }
 
 function flag_lists_ops_form_validate(&$form, &$form_state) {
