@@ -386,6 +386,7 @@ function flag_lists_ops_form($form, &$form_state, $flo) {
     '#type' => 'fieldset',
     '#title' => t('List operations'),
     '#tree' => TRUE,
+    '#attributes' => array('class' => array('flag-lists-ops-fieldset')),
   );
   switch ($flo->options['flo']['operation']) {
     case 'unflag':
@@ -461,10 +462,8 @@ function flag_lists_ops_form($form, &$form_state, $flo) {
   unset($form['actions']['submit']);
 
   // Generate a status message for AJAX submission.
-  $form['flag_lists']['status_message'] = array(
-    '#markup' => '',
-  );
-  $form['flag_lists']['#prefix'] = '<div id="flag-list-ops-container" class="flag-list-ops-container">';
+  $form['flag_lists']['status_message'] = array('#markup' => '');
+  $form['flag_lists']['#prefix'] = '<div id="flag-list-ops-container">';
   $form['flag_lists']['#suffix'] = (!empty($hidden_deleted_values)) ? $hidden_deleted_values : '' . '</div>';
 
   return $form;
@@ -477,7 +476,9 @@ function flag_lists_ops_form_ajax_callback($form, $form_state) {
     $message = flag_lists_ops_form_submit($form, $form_state);
   }
 
-  $form['flag_lists']['status_message']['#markup'] = '<div class="message">' . $message . '</div>';
+  $form['flag_lists']['status_message']['#markup'] = '<div class="alert alert-success">' . $message . '</div>';
+  $form['flag_lists']['list']['#value'] = '0';
+  $form['flag_lists']['status_message']['#attributes']['class'][] = 'alert-success';
 
   return $form['flag_lists'];
 }
