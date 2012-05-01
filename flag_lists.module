@@ -407,6 +407,7 @@ function flag_lists_ops_form($form, &$form_state, $flo) {
       $form['flag_lists']['list'] = array(
         '#type' => 'select',
         '#options' => array('0' => t('- ' . $null_text . ' -')) + $items,
+        '#default_value' => '0',
         '#ajax' => array(
          'callback' => 'flag_lists_ops_form_ajax_callback',
          'wrapper' => 'flag-list-ops-container',
