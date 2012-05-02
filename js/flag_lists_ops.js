@@ -19,7 +19,7 @@
       $('.flo-deleted-value', context).each(function(i) {
         var parent = $(this).parents('.view');
         $('.flo-select[value='+$(this).val()+']', parent).each(function(i) {
-          $(this).parents('.views-row, tr').fadeOut();
+          $(this).parents('.views-row, tr').fadeOut().delay(300).remove();
         });
       });
 
@@ -40,7 +40,7 @@
                 "Create a new list": function() {
                   var name = $('input.name', $(this)).val();
                   var type = $('select.type', $(this)).val();
-                  
+
                   $.getJSON(Drupal.settings.flag_lists.json_path.replace('%', type)+'?name='+name, function(data) {
                     if (data.error) {
                       alert(data.error);
@@ -57,7 +57,7 @@
                 }
               },
               close: function() {
-                
+
               }
             });
             $('.create-a-new-list', $(this).parent())

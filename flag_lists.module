@@ -362,6 +362,8 @@ function flag_lists_ops_form($form, &$form_state, $flo) {
   $form['#prefix'] = '<div class="flo-views-form">';
   $form['#suffix'] = '</div>';
 
+  $form_state['flo_operation'] = $flo->options['flo']['operation'];
+
   // Force browser to reload the page if Back is hit.
   if (preg_match('/msie/i', $_SERVER['HTTP_USER_AGENT'])) {
     drupal_add_http_header('Cache-Control', 'no-cache'); // works for IE6+
@@ -382,7 +384,7 @@ function flag_lists_ops_form($form, &$form_state, $flo) {
   }
 
   // Group items into a fieldset for easier theming.
-  $form['flag_lists'] = array(
+  $form['flag_lists_' . $form_state['flo_operation']] = array(
     '#type' => 'fieldset',
     '#title' => t('List operations'),
     '#tree' => TRUE,
@@ -392,12 +394,12 @@ function flag_lists_ops_form($form, &$form_state, $flo) {
     case 'unflag':
       $null_text = 'Remove from a list';
       $operation = 'unflag';
-      $form['flag_lists']['list'] = array(
+      $form['flag_lists_' . $form_state['flo_operation']]['list'] = array(
         '#type' => 'button',
         '#value' => t('Remove from list'),
         '#ajax' => array(
           'callback' => 'flag_lists_ops_form_ajax_callback',
-          'wrapper' => 'flag-list-ops-container',
+          'wrapper' => 'flag-list-ops-container-' . $flo->options['flo']['operation'],
         ),
       );
       break;
@@ -405,13 +407,13 @@ function flag_lists_ops_form($form, &$form_state, $flo) {
       $null_text = 'Add to a list';
       $operation = 'flag';
       drupal_add_library('system', 'ui.dialog');
-      $form['flag_lists']['list'] = array(
+      $form['flag_lists_' . $form_state['flo_operation']]['list'] = array(
         '#type' => 'select',
         '#options' => array('0' => t('- ' . $null_text . ' -')) + $items,
         '#default_value' => '0',
         '#ajax' => array(
          'callback' => 'flag_lists_ops_form_ajax_callback',
-         'wrapper' => 'flag-list-ops-container',
+         'wrapper' => 'flag-list-ops-container-' . $flo->options['flo']['operation'],
         ),
         '#attributes' => array(
           'class' => array(
@@ -435,24 +437,24 @@ function flag_lists_ops_form($form, &$form_state, $flo) {
   }
 
   // Get the $ops from the originating form.
-  if (!empty($form_state['values']['flag_lists']['list'])) {
-    $list = $form_state['values']['flag_lists']['list'];
+  if (!empty($form_state['values']['flag_lists_' . $form_state['flo_operation']]['list'])) {
+    $list = $form_state['values']['flag_lists_' . $form_state['flo_operation']]['list'];
   }
   if (!empty($_REQUEST['flag_lists_ops'])) {
     $ops = $_REQUEST['flag_lists_ops'];
   }
-  if (!empty($ops) && !empty($list) && $form_state['values']['flag_lists']['operation'] == 'unflag') {
+  if (!empty($ops) && !empty($list) && $form_state['values']['flag_lists_' . $form_state['flo_operation']]['operation'] == 'unflag') {
     $hidden_deleted_values = '';
     foreach ($ops as $nid) {
       $hidden_deleted_values .= '<input type="hidden" class="flo-deleted-value" value="' . $nid . '" />';
     }
   }
 
-  $form['flag_lists']['operation'] = array(
+  $form['flag_lists_' . $form_state['flo_operation']]['operation'] = array(
     '#type' => 'hidden',
     '#value' => $operation,
   );
-  $form['flag_lists']['go'] = array(
+  $form['flag_lists_' . $form_state['flo_operation']]['go'] = array(
     '#type' => 'submit',
     '#value' => t('Go'),
     '#attributes' => array(
@@ -462,9 +464,9 @@ function flag_lists_ops_form($form, &$form_state, $flo) {
   unset($form['actions']['submit']);
 
   // Generate a status message for AJAX submission.
-  $form['flag_lists']['status_message'] = array('#markup' => '');
-  $form['flag_lists']['#prefix'] = '<div id="flag-list-ops-container">';
-  $form['flag_lists']['#suffix'] = (!empty($hidden_deleted_values)) ? $hidden_deleted_values : '' . '</div>';
+  $form['flag_lists_' . $form_state['flo_operation']]['status_message'] = array('#markup' => '');
+  $form['flag_lists_' . $form_state['flo_operation']]['#prefix'] = '<div id="flag-list-ops-container-' . $flo->options['flo']['operation'] . '">';
+  $form['flag_lists_' . $form_state['flo_operation']]['#suffix'] = (!empty($hidden_deleted_values)) ? $hidden_deleted_values : '' . '</div>';
 
   return $form;
 }
@@ -476,11 +478,11 @@ function flag_lists_ops_form_ajax_callback($form, $form_state) {
     $message = flag_lists_ops_form_submit($form, $form_state);
   }
 
-  $form['flag_lists']['status_message']['#markup'] = '<div class="alert alert-success">' . $message . '</div>';
-  $form['flag_lists']['list']['#value'] = '0';
-  $form['flag_lists']['status_message']['#attributes']['class'][] = 'alert-success';
+  $form['flag_lists_' . $form_state['flo_operation']]['status_message']['#markup'] = '<div class="alert alert-success">' . $message . '</div>';
+  if ($form_state['flo_operation'] == 'flag') $form['flag_lists_' . $form_state['flo_operation']]['list']['#value'] = '0';
+  $form['flag_lists_' . $form_state['flo_operation']]['status_message']['#attributes']['class'][] = 'alert-success';
 
-  return $form['flag_lists'];
+  return $form['flag_lists_' . $form_state['flo_operation']];
 }
 
 function flag_lists_ops_form_validate(&$form, &$form_state) {
@@ -495,7 +497,7 @@ function flag_lists_ops_form_validate(&$form, &$form_state) {
     return $error_count;
   }
 
-  switch ($form_state['values']['flag_lists']['operation']) {
+  switch ($form_state['values']['flag_lists_' . $form_state['flo_operation']]['operation']) {
     case 'unflag':
       $ops = $_REQUEST['flag_lists_ops'];
       foreach ($ops as $key => $op) {
@@ -511,11 +513,11 @@ function flag_lists_ops_form_validate(&$form, &$form_state) {
       }
       break;
     default:
-      if (empty($form_state['values']['flag_lists']['list'])) {
+      if (empty($form_state['values']['flag_lists_' . $form_state['flo_operation']]['list'])) {
         form_set_error('flag_lists][list', t('No list selected. Please select a list to add to.'));
         $error_count++;
       }
-      else if (!($flag = flag_lists_get_flag($form_state['values']['flag_lists']['list']))) {
+      else if (!($flag = flag_lists_get_flag($form_state['values']['flag_lists_' . $form_state['flo_operation']]['list']))) {
         form_set_error('flag_lists][list', t('Invalid list selected. Please select a list to add to.'));
         $error_count++;
       }
@@ -535,7 +537,7 @@ function flag_lists_ops_form_submit(&$form, &$form_state) {
   $success_count = 0;
 
   // Get the operation, or set it
-  switch ($form_state['values']['flag_lists']['operation']) {
+  switch ($form_state['values']['flag_lists_' . $form_state['flo_operation']]['operation']) {
     case 'unflag':
       $operation = 'unflag';
       $message = 'removed from';
@@ -556,7 +558,7 @@ function flag_lists_ops_form_submit(&$form, &$form_state) {
       $operation = 'flag';
       $message = 'added to';
 
-      if ($flag = flag_lists_get_flag($form_state['values']['flag_lists']['list'])) {
+      if ($flag = flag_lists_get_flag($form_state['values']['flag_lists_' . $form_state['flo_operation']]['list'])) {
         foreach ($ops as $nid) {
           if (flag_lists_do_flag($flag, $operation, $nid)) {
             $success_count++;
@@ -1650,8 +1652,8 @@ function flag_lists_token_info() {
  */
 function flag_lists_tokens($type, $tokens, array $data = array(), array $options = array()) {
   $replacements = array();
-  if ($type == 'flag_lists' && !empty($data['flag_lists'])) {
-    $flag_list = $data['flag_lists'];
+  if ($type == 'flag_lists' && !empty($data['flag_lists_' . $form_state['flo_operation']])) {
+    $flag_list = $data['flag_lists_' . $form_state['flo_operation']];
     foreach ($tokens as $name => $original) {
       switch ($name) {
         case 'title':
