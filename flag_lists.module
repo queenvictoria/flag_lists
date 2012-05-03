@@ -1652,8 +1652,9 @@ function flag_lists_token_info() {
  */
 function flag_lists_tokens($type, $tokens, array $data = array(), array $options = array()) {
   $replacements = array();
-  if ($type == 'flag_lists' && !empty($data['flag_lists_' . $form_state['flo_operation']])) {
-    $flag_list = $data['flag_lists_' . $form_state['flo_operation']];
+
+  if ($type == 'flag_lists' && !empty($data['flag_lists'])) {
+    $flag_list = $data['flag_lists'];
     foreach ($tokens as $name => $original) {
       switch ($name) {
         case 'title':
