@@ -151,6 +151,7 @@ function flag_lists_user_page($user) {
     if (!empty($view)) {
       $view->set_display('default');
       $view->set_arguments(array($user->uid));
+      $view->pre_execute();
       $output = $view->render();
       drupal_set_title(str_replace(array_keys($view->build_info['substitutions']), $view->build_info['substitutions'], $view->build_info['title']));
     }
@@ -191,6 +192,7 @@ function flag_lists_user_list($user, $fid) {
     if (!empty($view)) {
       $view->set_display('default');
       $view->set_arguments(array($fid));
+      $view->pre_execute();
       $output = $view->render();
       drupal_set_title(str_replace(array_keys($view->build_info['substitutions']), $view->build_info['substitutions'], $view->build_info['title']));
     }

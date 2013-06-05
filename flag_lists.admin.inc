@@ -26,6 +26,7 @@ function theme_flag_lists_admin_page($variables) {
     $view = views_get_view('flag_lists', FALSE);
     if (!empty($view)) {
       $view->set_display('default');
+      $view->pre_execute();
       $output .= $view->render();
     }
   }
