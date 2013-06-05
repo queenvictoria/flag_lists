@@ -30,7 +30,7 @@ function flag_lists_schema() {
         'unsigned' => TRUE,
         'not null' => TRUE,
       ),
-      'content_type' => array(
+      'entity_type' => array(
         'type' => 'varchar',
         'length' => '32',
         'not null' => TRUE,
@@ -72,13 +72,13 @@ function flag_lists_schema() {
         'not null' => TRUE,
         'default' => 0,
       ),
-      'content_type' => array(
+      'entity_type' => array(
         'type' => 'varchar',
         'length' => '32',
         'not null' => TRUE,
         'default' => '',
       ),
-      'content_id' => array(
+      'entity_id' => array(
         'type' => 'int',
         'unsigned' => TRUE,
         'not null' => TRUE,
@@ -106,11 +106,11 @@ function flag_lists_schema() {
     ),
     'primary key' => array('fcid'),
     'unique keys' => array(
-      'fid_content_id_uid_sid' => array('fid', 'content_id', 'uid', 'sid'),
+      'fid_entity_id_uid_sid' => array('fid', 'entity_id', 'uid', 'sid'),
     ),
     'indexes' => array(
-      'content_type_content_id' => array('content_type', 'content_id'),
-      'content_type_uid_sid' => array('content_type', 'uid', 'sid'),
+      'entity_type_entity_id' => array('entity_type', 'entity_id'),
+      'entity_type_uid_sid' => array('entity_type', 'uid', 'sid'),
     ),
   );
   $schema['flag_lists_counts'] = array(
@@ -122,13 +122,13 @@ function flag_lists_schema() {
         'not null' => TRUE,
         'default' => 0,
       ),
-      'content_type' => array(
+      'entity_type' => array(
         'type' => 'varchar',
         'length' => '32',
         'not null' => TRUE,
         'default' => '',
       ),
-      'content_id' => array(
+      'entity_id' => array(
         'type' => 'int',
         'unsigned' => TRUE,
         'not null' => TRUE,
@@ -143,10 +143,10 @@ function flag_lists_schema() {
         'disp-width' => '10',
       )
     ),
-    'primary key' => array('fid', 'content_id'),
+    'primary key' => array('fid', 'entity_id'),
     'indexes' => array(
-      'fid_content_type' => array('fid', 'content_type'),
-      'content_type_content_id' => array('content_type', 'content_id'),
+      'fid_entity_type' => array('fid', 'entity_type'),
+      'entity_type_entity_id' => array('entity_type', 'entity_id'),
       'count' => array('count'),
     ),
   );
@@ -190,13 +190,13 @@ function flag_lists_install() {
 function flag_lists_uninstall() {
   // Remove our template flags.
   $query = db_select('flag_lists_types', 'fl');
-  $query->leftJoin('flags', 'f', 'fl.name = f.name');
+  $query->leftJoin('flag', 'f', 'fl.name = f.name');
   $query->addField('fl', 'fid', 'fid');
   $query->distinct();
   $fids = $query->execute();
 
   foreach ($fids as $fid) {
-    db_delete('flags')->condition('fid', $fid->fid);
+    db_delete('flag')->condition('fid', $fid->fid);
     db_delete('flag_content')->condition('fid', $fid->fid);
     db_delete('flag_types')->condition('fid', $fid->fid);
     db_delete('flag_counts')->condition('fid', $fid->fid);

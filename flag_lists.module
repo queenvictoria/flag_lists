@@ -214,7 +214,7 @@ function theme_flag_lists_user_list($variables) {
   $content = flag_lists_get_flagged_content($fid, $uid);
   foreach ($content as $item) {
     if ($item->content_type == 'node') {
-      $node = node_load($item->content_id);
+      $node = node_load($item->entity_id);
       $items[] = l($node->title, 'node/' . $node->nid);
     }
   }
@@ -811,7 +811,7 @@ function flag_lists_set_messages(&$flag) {
  *
  * Make sure a user can only see his/her own personal flags.
  */
-function flag_lists_flag_access($flag, $content_id, $action, $account) {
+function flag_lists_flag_access($flag, $entity_id, $action, $account) {
   if (!empty($flag->module) && $flag->module == 'flag_lists') {
   switch ($action) {
     case 'flag':
@@ -936,7 +936,7 @@ function flag_lists_get_user_flags($content_type = NULL, $account = NULL, $use_f
   $query = db_select('flag_lists_flags', 'fl')
     ->fields('fl')
     ->condition('fl.uid', $account->uid);
-  $query->leftJoin('flags', 'f', 'fl.pfid = f.fid');
+  $query->leftJoin('flag', 'f', 'fl.pfid = f.fid');
   $query->leftJoin('flag_lists_types', 'ft', 'ft.name = f.name');
   $query->addField('ft', 'type');
   if ($content_type) {
@@ -1011,12 +1011,12 @@ function theme_flag_lists_list($variables) {
   // Make sure we have a node.
   if (is_object($node) && user_access('create flag lists')) {
     $content_type = $node->type;
-    $content_id = $node->nid;
+    $entity_id = $node->nid;
   }
   // Or at least confirm we are on a node page and use has access.
   elseif (arg(0) == 'node' && is_numeric(arg(1)) && user_access('create flag lists')) {
-    $content_id = arg(1);
-    $query = db_select('node')->condition('nid', $content_id);
+    $entity_id = arg(1);
+    $query = db_select('node')->condition('nid', $entity_id);
     $query->addField('node', 'type');
     $content_type = $query->execute()->fetchField();
   }
@@ -1034,19 +1034,19 @@ function theme_flag_lists_list($variables) {
     // Build the list of lists for this node.
     foreach ($flags as $flag) {
       if ($flag->module == 'flag_lists') {
-      $action = _flag_lists_is_flagged($flag, $content_id, $user->uid, 0) ? 'unflag' : 'flag';
+      $action = _flag_lists_is_flagged($flag, $entity_id, $user->uid, 0) ? 'unflag' : 'flag';
       }
       else {
-        $action = $flag->is_flagged($content_id) ? 'unflag' : 'flag';;
+        $action = $flag->is_flagged($entity_id) ? 'unflag' : 'flag';;
       }
 
       // Do we need the ops?
       if ($ops && $flag->module == 'flag_lists') {
         $ops_links = theme('flag_lists_ops', array('flag' => $flag));
-        $link = $flag->theme($action, $content_id) . $ops_links;
+        $link = $flag->theme($action, $entity_id) . $ops_links;
       }
       else {
-        $link = $flag->theme($action, $content_id);
+        $link = $flag->theme($action, $entity_id);
       }
 
       // If it's a list, fix the link.
@@ -1201,12 +1201,12 @@ function flag_lists_get_flagged_content($fid, $uid) {
  *   The full flag object of for the flag link being generated.
  * @param $action
  *   The action this link will perform. Either 'flag' or 'unflag'.
- * @param $content_id
+ * @param $entity_id
  *   The ID of the node, comment, user, or other object being flagged.
  * @return
  *   An array defining properties of the link.
  */
-function flag_lists_flag_link($flag, $action, $content_id) {
+function flag_lists_flag_link($flag, $action, $entity_id) {
   return array();
 }
 
@@ -1224,30 +1224,61 @@ function flag_lists_flag_link_types() {
 
 
 function flag_lists_flag_default_flags($name = 'fl_template') {
-  return array(
-    array(
-      'api_version' => 2,
-      'name' => $name,
-      'module' => 'flag_lists',
-      'content_type' => 'node',
-      'global' => 0,
-      'show_on_page' => 0,
-      'show_on_teaser' => 0,
-      'show_on_form' => 0,
-      // The following UI labels aren't wrapped in t() because they are written
-      // to the DB in English. They are passed to t() later, thus allowing for
-      // multilingual sites.
-      'title' => 'Flag lists template',
-      'flag_short' => 'Add to your [flag_lists:title] [flag_lists:term]',
-      'flag_long' => 'Add this post to your [flag_lists:title] [flag_lists:term]',
-      'flag_message' => 'This post has been added to your [flag_lists:title] [flag_lists:term]',
-      'unflag_short' => 'Remove this from your [flag_lists:title] [flag_lists:term]',
-      'unflag_long' => 'Remove this post from your [flag_lists:title] [flag_lists:term]',
-      'unflag_message' => 'This post has been removed from your [flag_lists:title] [flag_lists:term]',
-      'types' => array(),
-      'link_type' => 'toggle',
-    ),
-  );
+  // return array(
+  //   array(
+  //     'api_version' => 2,
+  //     'name' => $name,
+  //     'module' => 'flag_lists',
+  //     'content_type' => 'node',
+  //     'global' => 0,
+  //     'show_on_page' => 0,
+  //     'show_on_teaser' => 0,
+  //     'show_on_form' => 0,
+  //     // The following UI labels aren't wrapped in t() because they are written
+  //     // to the DB in English. They are passed to t() later, thus allowing for
+  //     // multilingual sites.
+  //     'title' => 'Flag lists template',
+  //     'flag_short' => 'Add to your [flag_lists:title] [flag_lists:term]',
+  //     'flag_long' => 'Add this post to your [flag_lists:title] [flag_lists:term]',
+  //     'flag_message' => 'This post has been added to your [flag_lists:title] [flag_lists:term]',
+  //     'unflag_short' => 'Remove this from your [flag_lists:title] [flag_lists:term]',
+  //     'unflag_long' => 'Remove this post from your [flag_lists:title] [flag_lists:term]',
+  //     'unflag_message' => 'This post has been removed from your [flag_lists:title] [flag_lists:term]',
+  //     'types' => array(),
+  //     'link_type' => 'toggle',
+  //   ),
+  // );
+
+$flags = array();
+// Exported flag: "Flag lists template".
+$flags['fl_template'] = array(
+  'entity_type' => 'node',
+  'title' => 'Flag lists template',
+  'global' => 0,
+  'types' => array(),
+  'flag_short' => 'Add to your [flag_lists:title] [flag_lists:term]',
+  'flag_long' => 'Add this post to your [flag_lists:title] [flag_lists:term]',
+  'flag_message' => 'This post has been added to your [flag_lists:title] [flag_lists:term]',
+  'unflag_short' => 'Remove this from your [flag_lists:title] [flag_lists:term]',
+  'unflag_long' => 'Remove this post from your [flag_lists:title] [flag_lists:term]',
+  'unflag_message' => 'This post has been removed from your [flag_lists:title] [flag_lists:term]',
+  'unflag_denied_text' => '',
+  'link_type' => 'toggle',
+  'weight' => 0,
+  'api_version' => 3,
+  'module' => 'flag_lists',
+  'show_on_page' => 0,
+  'show_on_teaser' => 0,
+  'show_on_form' => 0,
+  'status' => FALSE,
+  'import_roles' => array(
+    'flag' => array(),
+    'unflag' => array(),
+  ),
+);
+return $flags;
+
+  
 }
 
 /**
@@ -1294,7 +1325,7 @@ function flag_lists_insert($flag) {
     ->fields(array(
       'pfid' => $flag->pfid,
       'uid' => $flag->uid,
-      'content_type' => $flag->content_type,
+      'entity_type' => $flag->entity_type,
       'name' => $flag->name,
       'title' => $flag->title,
       'options' => $flag->get_serialized_options($flag),
@@ -1330,7 +1361,7 @@ function flag_lists_fl_delete($flag, $account = NULL) {
  * Used both for the regular callback as well as the JS version. We use this
  * instead of the flag module's because our flags are not in the flags table.
  */
-function flag_lists_page($action = NULL, $flag_name = NULL, $content_id = NULL) {
+function flag_lists_page($action = NULL, $flag_name = NULL, $entity_id = NULL) {
   global $user;
 
   // Shorten up the variables that affect the behavior of this page.
@@ -1341,7 +1372,7 @@ function flag_lists_page($action = NULL, $flag_name = NULL, $content_id = NULL) 
   $has_js = isset($_GET['has_js']);
 
   // Check the flag token, then perform the flagging.
-  if (!flag_check_token($token, $content_id)) {
+  if (!flag_check_token($token, $entity_id)) {
     $error = t('Bad token. You seem to have followed an invalid link.');
   }
   elseif ($user->uid == 0 && !$has_js) {
@@ -1355,7 +1386,7 @@ function flag_lists_page($action = NULL, $flag_name = NULL, $content_id = NULL) 
 
     // Identify it as ours.
     $flag->module = 'flag_lists';
-    flag_lists_do_flag($flag, $action, $content_id);
+    flag_lists_do_flag($flag, $action, $entity_id);
   }
 
   // If an error was received, set a message and exit.
@@ -1381,14 +1412,14 @@ function flag_lists_page($action = NULL, $flag_name = NULL, $content_id = NULL) 
 //    $flag = flag_lists_get_flag($flag_name);
  //   $flag->link_type = 'toggle';
     $sid = flag_get_sid($user->uid);
-    $new_action = _flag_lists_is_flagged($flag, $content_id, $user->uid, $sid) ? 'unflag' : 'flag';
-    $new_link = $flag->theme($new_action, $content_id, TRUE);
+    $new_action = _flag_lists_is_flagged($flag, $entity_id, $user->uid, $sid) ? 'unflag' : 'flag';
+    $new_link = $flag->theme($new_action, $entity_id, TRUE);
     flag_lists_fix_link($new_link, $new_action);
     drupal_json_output(array(
       'status' => TRUE,
       'newLink' => $new_link,
       // Further information for the benefit of custom JavaScript event handlers:
-      'contentId' => $content_id,
+      'contentId' => $entity_id,
       'contentType' => $flag->content_type,
       'flagName' => $flag->name,
       'flagStatus' => $action,
@@ -1397,7 +1428,7 @@ function flag_lists_page($action = NULL, $flag_name = NULL, $content_id = NULL) 
   }
   else {
     $flag = flag_lists_get_flag($flag->fid);
-    drupal_set_message($flag->get_label($action . '_message', $content_id));
+    drupal_set_message($flag->get_label($action . '_message', $entity_id));
     drupal_goto();
   }
 }
@@ -1413,7 +1444,7 @@ function flag_lists_fix_link(&$link, $action) {
    *
    * @param $action
    *   Either 'flag' or 'unflag'.
-   * @param $content_id
+   * @param $entity_id
    *   The ID of the item to flag or unflag.
    * @param $account
    *   The user on whose behalf to flag. Leave empty for the current user.
@@ -1423,7 +1454,7 @@ function flag_lists_fix_link(&$link, $action) {
    *   FALSE if some error occured (e.g., user has no permission, flag isn't
    *   applicable to the item, etc.), TRUE otherwise.
    */
-  function flag_lists_do_flag($flag, $action, $content_id, $account = NULL, $skip_permission_check = FALSE) {
+  function flag_lists_do_flag($flag, $action, $entity_id, $account = NULL, $skip_permission_check = FALSE) {
     if (!isset($account)) {
       $account = $GLOBALS['user'];
     }
@@ -1431,7 +1462,7 @@ function flag_lists_fix_link(&$link, $action) {
       return FALSE;
     }
     if (!$skip_permission_check) {
-      if (!$flag->access($content_id, $action, $account)) {
+      if (!$flag->access($entity_id, $action, $account)) {
         // User has no permission to flag/unflag this object.
         return FALSE;
       }
@@ -1439,7 +1470,7 @@ function flag_lists_fix_link(&$link, $action) {
     else {
       // We are skipping permission checks. However, at a minimum we must make
       // sure the flag applies to this content type:
-      if (!$flag->applies_to_content_id($content_id)) {
+      if (!$flag->applies_to_content_id($entity_id)) {
         return FALSE;
       }
     }
@@ -1460,17 +1491,17 @@ function flag_lists_fix_link(&$link, $action) {
 
     // Perform the flagging or unflagging of this flag. We invoke hook_flag here
     // because we do our own flagging.
-    $flagged = _flag_lists_is_flagged($flag, $content_id, $uid, $sid);
+    $flagged = _flag_lists_is_flagged($flag, $entity_id, $uid, $sid);
     if ($action == 'unflag') {
       if ($flagged) {
-        $fcid = _flag_lists_unflag($flag, $content_id, $uid, $sid);
-        module_invoke_all('flag', 'unflag', $flag, $content_id, $account, $fcid);
+        $fcid = _flag_lists_unflag($flag, $entity_id, $uid, $sid);
+        module_invoke_all('flag', 'unflag', $flag, $entity_id, $account, $fcid);
       }
     }
     elseif ($action == 'flag') {
       if (!$flagged) {
-        $fcid = _flag_lists_flag($flag, $content_id, $uid, $sid);
-        module_invoke_all('flag', 'flag', $flag, $content_id, $account, $fcid);
+        $fcid = _flag_lists_flag($flag, $entity_id, $uid, $sid);
+        module_invoke_all('flag', 'flag', $flag, $entity_id, $account, $fcid);
       }
     }
 
@@ -1487,12 +1518,12 @@ function flag_lists_fix_link(&$link, $action) {
    * bypass it.
    *
    */
-  function _flag_lists_is_flagged($flag, $content_id, $uid, $sid) {
+  function _flag_lists_is_flagged($flag, $entity_id, $uid, $sid) {
     $query = db_select('flag_lists_content')
       ->condition('fid', $flag->fid)
       ->condition('uid', $uid)
       ->condition('sid', $sid)
-      ->condition('content_id', $content_id);
+      ->condition('entity_id', $entity_id);
     $query->addField('flag_lists_content', 'fid');
     return $query->execute()->fetchField();
   }
@@ -1504,19 +1535,19 @@ function flag_lists_fix_link(&$link, $action) {
    * flag_lists_do_flag() function instead.
    *
    */
-  function _flag_lists_flag($flag, $content_id, $uid, $sid) {
+  function _flag_lists_flag($flag, $entity_id, $uid, $sid) {
     $fcid = db_insert('flag_lists_content')
       ->fields(array(
         'fid' => $flag->fid,
-        'content_type' => $flag->content_type,
-        'content_id' => $content_id,
+        'entity_type' => $flag->entity_type,
+        'entity_id' => $entity_id,
         'uid' => $uid,
         'sid' => $sid,
         'timestamp' => REQUEST_TIME,
       ))
       ->execute();
 
-    _flag_lists_update_count($flag, $content_id);
+    _flag_lists_update_count($flag, $entity_id);
     return $fcid;
   }
 
@@ -1527,10 +1558,10 @@ function flag_lists_fix_link(&$link, $action) {
    * flag_lists_do_flag() function instead.
    *
    */
-  function _flag_lists_unflag($flag, $content_id, $uid, $sid) {
+  function _flag_lists_unflag($flag, $entity_id, $uid, $sid) {
     $query = db_select('flag_lists_content')
       ->condition('fid', $flag->fid)
-      ->condition('content_id', $content_id)
+      ->condition('entity_id', $entity_id)
       ->condition('uid', $uid)
       ->condition('sid', $sid);
     $query->addField('flag_lists_content', 'fcid');
@@ -1539,7 +1570,7 @@ function flag_lists_fix_link(&$link, $action) {
       db_delete('flag_lists_content')
         ->condition('fcid', $fcid)
         ->execute();
-      _flag_lists_update_count($flag, $content_id);
+      _flag_lists_update_count($flag, $entity_id);
     }
     return $fcid;
   }
@@ -1547,11 +1578,11 @@ function flag_lists_fix_link(&$link, $action) {
   /**
    * Updates the flag count for this content
    */
-  function _flag_lists_update_count($flag, $content_id) {
+  function _flag_lists_update_count($flag, $entity_id) {
     $count = db_select('flag_lists_content', 'f')
       ->fields('f')
       ->condition('fid', $flag->fid)
-      ->condition('content_id', $content_id)
+      ->condition('entity_id', $entity_id)
       ->countQuery()
       ->execute()
       ->fetchField();
@@ -1559,7 +1590,7 @@ function flag_lists_fix_link(&$link, $action) {
     if (empty($count)) {
       $num_deleted = db_delete('flag_lists_counts')
         ->condition('fid', $flag->fid)
-        ->condition('content_id', $content_id)
+        ->condition('entity_id', $entity_id)
         ->execute();
     }
     else {
@@ -1568,14 +1599,14 @@ function flag_lists_fix_link(&$link, $action) {
           'count' => $count,
         ))
         ->condition('fid', $flag->fid)
-        ->condition('content_id', $content_id)
+        ->condition('entity_id', $entity_id)
         ->execute();
       if (empty($num_updated)) {
         db_insert('flag_lists_counts')
           ->fields(array(
             'fid' => $flag->fid,
-            'content_type' => $flag->content_type,
-            'content_id' => $content_id,
+            'entity_type' => $flag->entity_type,
+            'entity_id' => $entity_id,
             'count' => $count,
           ))
           ->execute();
