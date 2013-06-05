@@ -26,6 +26,7 @@ function theme_flag_lists_admin_page($variables) {
     $view = views_get_view('flag_lists', FALSE);
     if (!empty($view)) {
       $view->set_display('default');
+      $view->pre_execute();
       $output .= $view->render();
     }
   }
@@ -110,7 +111,7 @@ function flag_lists_add_js($type = NULL) {
   }
 
   // New flag. Load the template row.
-  $query = db_select('flags', 'f');
+  $query = db_select('flag', 'f');
   $query->leftJoin('flag_lists_types', 'fl', 'f.name = fl.name');
   $query->fields('f')
     ->fields('fl')
@@ -119,7 +120,7 @@ function flag_lists_add_js($type = NULL) {
   $row = $query->execute()
     ->fetchObject();
 
-  $newflag = flag_flag::factory_by_content_type('node');
+  $newflag = flag_flag::factory_by_entity_type('node');
 
   $flag = $newflag->factory_by_row($row);
   // The template fid becomes the flag_lists parent flag.
@@ -243,7 +244,7 @@ function flag_lists_form_submit($form, $form_state, $account = NULL) {
   else {
     // New flag. Load the template row.
     $type = $form_state['values']['type'];
-    $query = db_select('flags', 'f');
+    $query = db_select('flag', 'f');
     $query->leftJoin('flag_lists_types', 'fl', 'f.name = fl.name');
     $query->fields('f')
       ->fields('fl')
@@ -252,7 +253,7 @@ function flag_lists_form_submit($form, $form_state, $account = NULL) {
     $row = $query->execute()
       ->fetchObject();
 
-    $newflag = flag_flag::factory_by_content_type('node');
+    $newflag = flag_flag::factory_by_entity_type('node');
 
     $flag = $newflag->factory_by_row($row);
     // The template fid becomes the flag_lists parent flag.
