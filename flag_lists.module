@@ -696,11 +696,11 @@ function flag_lists_get_content_fids() {
 function flag_lists_block_info() {
   return array(
     'flag_lists' => array(
-      'info' => t('Lists'),
+      'info' => t(ucfirst(variable_get('flag_lists_name', 'list'))),
       'cache' => DRUPAL_NO_CACHE,
     ),
     'flag_lists_list' => array(
-      'info' => t('My lists'),
+      'info' => t('My @lists', array('@lists' => variable_get('flag_lists_name', 'list'))),
       'cache' => DRUPAL_NO_CACHE,
     ),
   );
@@ -711,9 +711,8 @@ function flag_lists_block_info() {
  */
 function flag_lists_block_configure($delta = '') {
   $form = array();
-
   switch ($delta) {
-    case 'flag_lists':
+    case 'flag_lists_list':
       $form = array(
         'create_lists' => array(
           '#type' => 'checkbox',
@@ -744,7 +743,7 @@ function flag_lists_block_configure($delta = '') {
  */
 function flag_lists_block_save($delta = '', $edit = array()) {
   switch ($delta) {
-    case 'flag_lists':
+    case 'flag_lists_list':
       variable_set('flag_lists_create_lists', $edit['create_lists']);
       variable_set('flag_lists_ops', $edit['ops']);
       variable_set('flag_lists_include_flags', $edit['include_flags']);
@@ -762,7 +761,7 @@ function flag_lists_block_view($delta = '') {
     case 'flag_lists':
       if (user_access('create flag lists')) {
         $block = array(
-          'subject' => t('My lists'),
+          'subject' => t('My @lists', array('@lists' => variable_get('flag_lists_name', 'list'))),
           'content' => theme('flag_lists_list', array('node' => NULL, 'create' => variable_get('flag_lists_create_lists', 0), 'ops' =>variable_get('flag_lists_ops', 0), 'use_flags' => variable_get('flag_lists_include_flags', 0))),
         );
       }
@@ -773,7 +772,7 @@ function flag_lists_block_view($delta = '') {
         $account = user_load($user->uid);
 
         $block = array(
-          'subject' => t('My lists'),
+          'subject' => t('My @lists', array('@lists' => variable_get('flag_lists_name', 'list'))),
           'content' => flag_lists_user_page($account),
         );
       }
