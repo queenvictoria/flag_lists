@@ -474,6 +474,7 @@ function flag_lists_ops_form($form, &$form_state, $flo) {
 }
 
 function flag_lists_ops_form_ajax_callback($form, $form_state) {
+  error_log("Ajax callback");
   // The form has already been submitted and updated. We can return the replaced
   // item as it is.
   if (!flag_lists_ops_form_validate($form, $form_state)) {
@@ -695,7 +696,7 @@ function flag_lists_get_content_fids() {
  */
 function flag_lists_block_info() {
   return array(
-    'flag_lists' => array(
+    'flag_lists_list' => array(
       'info' => t('Lists'),
       'cache' => DRUPAL_NO_CACHE,
     ),
@@ -711,9 +712,8 @@ function flag_lists_block_info() {
  */
 function flag_lists_block_configure($delta = '') {
   $form = array();
-
   switch ($delta) {
-    case 'flag_lists':
+    case 'flag_lists_list':
       $form = array(
         'create_lists' => array(
           '#type' => 'checkbox',
@@ -744,7 +744,7 @@ function flag_lists_block_configure($delta = '') {
  */
 function flag_lists_block_save($delta = '', $edit = array()) {
   switch ($delta) {
-    case 'flag_lists':
+    case 'flag_lists_list':
       variable_set('flag_lists_create_lists', $edit['create_lists']);
       variable_set('flag_lists_ops', $edit['ops']);
       variable_set('flag_lists_include_flags', $edit['include_flags']);
@@ -759,7 +759,7 @@ function flag_lists_block_view($delta = '') {
   $block = array();
 
   switch ($delta) {
-    case 'flag_lists':
+    case 'flag_lists_list':
       if (user_access('create flag lists')) {
         $block = array(
           'subject' => t('My lists'),
@@ -1280,7 +1280,7 @@ $flags['fl_template'] = array(
 );
 return $flags;
 
-  
+
 }
 
 /**
