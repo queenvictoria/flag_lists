@@ -1213,9 +1213,9 @@ function flag_lists_flag_link($flag, $action, $entity_id) {
 }
 
 /**
- * Implementation of hook_flag_link_types().
+ * Implementation of hook_flag_link_type_info().
  */
-function flag_lists_flag_link_types() {
+function flag_lists_flag_link_type_info() {
   return array(
     'fl_template' => array(
       'title' => t('Flag Lists toggle'),
