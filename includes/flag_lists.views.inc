@@ -59,7 +59,7 @@ function flag_lists_views_data_alter(&$data) {
   );
 
   // We need fid and name form flags' data, and join.
-  $data['flags'] = array(
+  $data['flag'] = array(
     'table' => array(
       'group' => t('Flag'),
       'join' => array(
@@ -313,7 +313,7 @@ function flag_lists_views_data() {
         'flag_lists_flags' => array(
           'table' => 'flag_lists_types',
           'type' => 'INNER',
-          'left_table' => 'flags',
+          'left_table' => 'flag',
           'left_field' => 'name',
           'field' => 'name',
         ),
