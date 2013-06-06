@@ -6,7 +6,7 @@
 class flag_lists_handler_field_template_types extends views_handler_field_prerender_list {
   function construct() {
     parent::construct();
-    $this->additional_fields['name'] = array('table' => 'flags', 'field' => 'name');
+    $this->additional_fields['name'] = array('table' => 'flag', 'field' => 'name');
   }
   function query() {
     $this->add_additional_fields();
@@ -23,7 +23,7 @@ class flag_lists_handler_field_template_types extends views_handler_field_preren
 
     if (count($names)) {
       $query = db_select('flag_lists_types', 'flt');
-      $query->innerJoin('flags', 'f', 'flt.name = f.name');
+      $query->innerJoin('flag', 'f', 'flt.name = f.name');
       $result = $query->fields('flt', array('type', 'name'))
         ->condition('f.name', $names, 'IN')
         ->orderBy('flt.type')

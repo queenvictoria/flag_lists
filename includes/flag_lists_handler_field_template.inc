@@ -14,7 +14,7 @@ class flag_lists_handler_field_template extends views_handler_field {
    */
   function construct() {
     parent::construct();
-    $this->additional_fields['name'] = array('table' => 'flags', 'field' => 'name');
+    $this->additional_fields['name'] = array('table' => 'flag', 'field' => 'name');
   }
 
   function option_definition() {
