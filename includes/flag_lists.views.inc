@@ -261,7 +261,7 @@ function flag_lists_views_data() {
       'join' => array(
         'node' => array(
           'left_field' => 'nid',
-          'field' => 'content_id',
+          'field' => 'entity_id',
         ),
       ),
       'group' => t('Flag lists'),
@@ -275,7 +275,7 @@ function flag_lists_views_data() {
         'label' => t('List user'),
       ),
     ),
-    'content_id' => array(
+    'entity_id' => array(
       'relationship' => array(
         'title' => t('Node'),
         'help' => t('The node that has been listed'),

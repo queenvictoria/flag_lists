@@ -321,12 +321,12 @@ function flag_lists_views_default_views() {
   $view->disabled = FALSE; /* Edit this to true to make a default view disabled initially */
   $handler = $view->new_display('default', 'Defaults', 'default');
   $handler->override_option('relationships', array(
-    'content_id' => array(
+    'entity_id' => array(
       'label' => 'Listed content',
       'required' => 1,
-      'id' => 'content_id',
+      'id' => 'entity_id',
       'table' => 'flag_lists_content',
-      'field' => 'content_id',
+      'field' => 'entity_id',
       'relationship' => 'none',
     ),
   ));
