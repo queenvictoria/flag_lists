@@ -1473,7 +1473,7 @@ function flag_lists_fix_link(&$link, $action) {
     else {
       // We are skipping permission checks. However, at a minimum we must make
       // sure the flag applies to this content type:
-      if (!$flag->applies_to_content_id($entity_id)) {
+      if (!$flag->applies_to_entity_id($entity_id)) {
         return FALSE;
       }
     }

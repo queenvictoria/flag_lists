@@ -494,7 +494,7 @@ function flag_lists_generate_lists_form_submit($form, &$form_state) {
       $flags = flag_lists_get_flags();
     foreach ($flags as $flag) {
       $result = db_select('flag_lists_content', 'f')
-        ->fields('f', array('fcid', 'content_id'))
+        ->fields('f', array('fcid', 'entity_id'))
         ->condition('fid', $flag->fid)
         ->execute();
 
@@ -502,7 +502,7 @@ function flag_lists_generate_lists_form_submit($form, &$form_state) {
         db_delete('flag_lists_content')->condition('fid', $flag->fid)->execute();
         db_delete('flag_lists_counts')->condition('fid', $flag->fid)->execute();
 
-        module_invoke_all('flag', 'unflag', $flag, $row->content_id, $account, $row->fcid);
+        module_invoke_all('flag', 'unflag', $flag, $row->entity_id, $account, $row->fcid);
       }
     }
     drupal_set_message(t('All listings were deleted.'));
@@ -574,7 +574,7 @@ function flag_lists_generate_lists_form_submit($form, &$form_state) {
       }
 
       $r = rand(1, $max_nid);
-      $content_id = db_select('node', 'n')
+      $entity_id = db_select('node', 'n')
         ->fields('n', array('nid'))
         ->condition('type', $content_type)
         ->condition('nid', $r)
@@ -586,7 +586,7 @@ function flag_lists_generate_lists_form_submit($form, &$form_state) {
       // we may have a node type with no nodes yet or a user with no lists.
       // Also, if a listing already exists, we count it, but it can only be in
       // the db once.
-      if (flag_lists_do_flag($list, 'flag', $content_id, $account, TRUE)) {
+      if (flag_lists_do_flag($list, 'flag', $entity_id, $account, TRUE)) {
         $count++;
       }
     }
