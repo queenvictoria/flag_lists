@@ -1414,7 +1414,10 @@ function flag_lists_page($action = NULL, $flag_name = NULL, $entity_id = NULL) {
  //   $flag->link_type = 'toggle';
     $sid = flag_get_sid($user->uid);
     $new_action = _flag_lists_is_flagged($flag, $entity_id, $user->uid, $sid) ? 'unflag' : 'flag';
-    $new_link = $flag->theme($new_action, $entity_id, TRUE);
+    $variables = array(
+      'after_flagging' => TRUE,
+    );
+    $new_link = $flag->theme($new_action, $entity_id, $variables);
     flag_lists_fix_link($new_link, $new_action);
     drupal_json_output(array(
       'status' => TRUE,
