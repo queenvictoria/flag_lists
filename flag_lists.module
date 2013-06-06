@@ -653,7 +653,7 @@ function flag_lists_get_content_fids() {
       ->condition('fc.uid', $user->uid)
       ->condition('fn.type', $type);
     $query->leftJoin('flag_types', 'fn', 'fn.fid = fc.fid');
-    $query->leftJoin('flags', 'f', 'fc.fid = f.fid');
+    $query->leftJoin('flag', 'f', 'fc.fid = f.fid');
     $fc_result = $query->execute();
 
     foreach ($fc_result as $row) {
@@ -664,7 +664,7 @@ function flag_lists_get_content_fids() {
   // This is the flag / unflag callback
   elseif (arg(0) == 'flag' && (arg(1) == 'flag' || arg(1) == 'unflag')) {
     // Get the flag for this request.
-    $fids[] = db_select('flags', 'f')
+    $fids[] = db_select('flag', 'f')
       ->fields('f', array('fid'))
       ->condition('name', arg(2))
       ->execute()
@@ -673,7 +673,7 @@ function flag_lists_get_content_fids() {
 
   // Get the regular flags for this node. The flag module will narrow by role,
   // etc. when flag_get_flags() is called. These flag ids are always returned.
-  $query = db_select('flags', 'f')
+  $query = db_select('flag', 'f')
     ->fields('f', array('fid'))
     ->condition('fc.fid', NULL);
   $query->leftJoin('flag_lists', 'fc', 'fc.fid = f.fid');

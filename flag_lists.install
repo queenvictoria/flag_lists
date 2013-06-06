@@ -191,15 +191,15 @@ function flag_lists_uninstall() {
   // Remove our template flags.
   $query = db_select('flag_lists_types', 'fl');
   $query->leftJoin('flag', 'f', 'fl.name = f.name');
-  $query->addField('fl', 'fid', 'fid');
+  $query->addField('fl', 'name', 'flname');
   $query->distinct();
   $fids = $query->execute();
 
   foreach ($fids as $fid) {
-    db_delete('flag')->condition('fid', $fid->fid);
-    db_delete('flag_content')->condition('fid', $fid->fid);
-    db_delete('flag_types')->condition('fid', $fid->fid);
-    db_delete('flag_counts')->condition('fid', $fid->fid);
+    db_delete('flag')->condition('name', $fid->name);
+    db_delete('flag_content')->condition('name', $fid->name);
+    db_delete('flag_types')->condition('name', $fid->name);
+    db_delete('flag_counts')->condition('name', $fid->name);
   }
 
   db_delete('variable')->condition('name', 'flag_lists%', 'LIKE');
