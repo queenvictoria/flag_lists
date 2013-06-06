@@ -474,7 +474,6 @@ function flag_lists_ops_form($form, &$form_state, $flo) {
 }
 
 function flag_lists_ops_form_ajax_callback($form, $form_state) {
-  error_log("Ajax callback");
   // The form has already been submitted and updated. We can return the replaced
   // item as it is.
   if (!flag_lists_ops_form_validate($form, $form_state)) {
