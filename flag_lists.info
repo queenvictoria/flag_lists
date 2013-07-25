@@ -7,6 +7,11 @@ dependencies[] = token
 files[] = flag_lists.admin.inc
 files[] = flag_lists.module
 files[] = flag_lists.install
+
+; Files that contain classes.
+; Flag classes
+files[] = includes/flag/flag_lists.inc
+
 files[] = includes/flag_lists.views.inc
 files[] = includes/flag_lists.views_default.inc
 files[] = includes/flag_lists_handler_argument_fid.inc

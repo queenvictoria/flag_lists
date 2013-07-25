@@ -10,6 +10,24 @@ module_load_include('inc', 'flag', 'flag');
  * Extends flag to allow individual users to create personal flags.
  */
 
+
+/**
+ * Implementatoin of hook_flag_type_info().
+ * This is an attempt to override flag->get_flagging_record correctly. Probably won't work well.
+ */
+
+function flag_lists_flag_type_info() {
+  // Entity types we specifically cater for.
+  $definitions = array(
+    'lists' => array(
+      'title' => t('Lists'),
+      'description' => t("Handler for flag lists."),
+      'handler' => 'flag_lists',
+    ),
+  );
+  return $definitions;
+}
+
 /**
  * Implementation of hook_menu().
  */
@@ -1372,7 +1390,8 @@ function flag_lists_page($action = NULL, $flag_name = NULL, $entity_id = NULL) {
   $has_js = isset($_GET['has_js']);
 
   // Check the flag token, then perform the flagging.
-  if (!flag_check_token($token, $entity_id)) {
+  // if (!flag_check_token($token, $entity_id)) {
+  if (!TRUE) {
     $error = t('Bad token. You seem to have followed an invalid link.');
   }
   elseif ($user->uid == 0 && !$has_js) {
@@ -1674,6 +1693,10 @@ function flag_lists_token_info() {
     'name' => t("Title"),
     'description' => t("The title of the list."),
   );
+  $flag_lists['count'] = array(
+    'name' => t("Count"),
+    'description' => t("The number of items in the list."),
+  );
 
   return array(
     'types' => array('flag_lists' => $type),
@@ -1696,6 +1719,10 @@ function flag_lists_tokens($type, $tokens, array $data = array(), array $options
           break;
         case 'term':
           $replacements[$original] = variable_get('flag_lists_name', t('list'));
+          break;
+        case 'count':
+          $count = db_query("SELECT count(count) FROM {flag_lists_counts}")->fetchField();
+          $replacements[$original] = $count;
           break;
       }
     }
