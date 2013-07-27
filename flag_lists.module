@@ -1498,13 +1498,13 @@ function flag_lists_fix_link(&$link, $action) {
     if ($action == 'unflag') {
       if ($flagged) {
         $fcid = _flag_lists_unflag($flag, $entity_id, $uid, $sid);
-        module_invoke_all('flag', 'unflag', $flag, $entity_id, $account, $fcid);
+        module_invoke_all('flag_unflag', $flag, $entity_id, $account, $fcid);
       }
     }
     elseif ($action == 'flag') {
       if (!$flagged) {
         $fcid = _flag_lists_flag($flag, $entity_id, $uid, $sid);
-        module_invoke_all('flag', 'flag', $flag, $entity_id, $account, $fcid);
+        module_invoke_all('flag_flag', $flag, $entity_id, $account, $fcid);
       }
     }
 
