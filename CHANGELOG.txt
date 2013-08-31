@@ -1,5 +1,12 @@
 // $id: $
 
+// 3.x
+Sept. 1, 2013
+Fix bug: New template creates a flag without a machine name.
+
+Aug., 2013
+Feature: Change node to entity across the board.
+
 Flag lists (Jan. 27, 2011
 Fix bug: Incorrectly checking status of non-flag_lists flags.
 Fix bug: Incorrectly applying hook_flag_access() on non-flag_lists flags.

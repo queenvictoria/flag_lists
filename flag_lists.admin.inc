@@ -116,7 +116,7 @@ function flag_lists_add_js($type = NULL) {
   $query->fields('f')
     ->fields('fl')
     ->condition('fl.type', $type);
-  
+
   $row = $query->execute()
     ->fetchObject();
 
@@ -177,7 +177,7 @@ function flag_lists_form($form, $form_state, $name = NULL, $type = NULL) {
     $title_string_name = variable_get('flag_lists_name', 'list');
     $title_string = t('Edit your "@title" @name title', array('@title' => $flag->get_title(), '@name' => $title_string_name));
     drupal_set_title();
-    
+
     $form['edit'] = array(
       '#type' => 'hidden',
       '#value' => TRUE,
@@ -249,7 +249,7 @@ function flag_lists_form_submit($form, $form_state, $account = NULL) {
     $query->fields('f')
       ->fields('fl')
       ->condition('fl.type', $type);
-    
+
     $row = $query->execute()
       ->fetchObject();
 
@@ -402,7 +402,7 @@ function flag_lists_create_template_form_validate($form, &$form_state) {
  */
 function flag_lists_create_template_form_submit($form, &$form_state) {
   $template = flag_lists_flag_default_flags('fl_template_' . $form_state['values']['name']);
-  $flag = flag_flag::factory_by_array($template[0]);
+  $flag = flag_flag::factory_by_array(array_shift($template));
   $flag->title = t('List template') . ' ' . $form_state['values']['name'];
   $flag->save();
   // Enter the new template into flag_lists_types.

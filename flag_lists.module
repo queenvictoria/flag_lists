@@ -1254,6 +1254,7 @@ $flags = array();
 // Exported flag: "Flag lists template".
 $flags['fl_template'] = array(
   'entity_type' => 'node',
+  'name' => $name,
   'title' => 'Flag lists template',
   'global' => 0,
   'types' => array(),
