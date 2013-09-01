@@ -15,6 +15,7 @@ Sept. 1, 2013
 Fix bug: New template creates a flag without a machine name.
 Fix bug: flag_lists_types table isn't well maintained. We should rely on the flag_types table instead which is being maintained by the flag module itself.
 Fix bug: links missing on block
+Update: flag_form alter and template_validate now use flag_types
 
 Aug., 2013
 Feature: Change node to entity across the board.
