@@ -7,6 +7,7 @@
 Remove defunct tables
 flag_lists_type
 flag_lists_content??
+We need better paths to create new lists. They should really be in the user/ namespace
 
 Sept. 1, 2013
 Fix bug: New template creates a flag without a machine name.

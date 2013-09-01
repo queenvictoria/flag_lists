@@ -1635,6 +1635,23 @@ function flag_lists_template_exists($type) {
 }
 
 /**
+ * Get the flag (lists) row suitable for this bundle type.
+ */
+function flag_lists_template_row($type) {
+  $query = db_select('flag', 'f');
+  $query->join('flag_types', 'ft', 'f.fid = ft.fid');
+  $query->condition('f.name', 'fl_template%', 'LIKE');
+  $query->condition('ft.type', $type);
+  $query->fields('f')
+    ->fields('ft');
+  $exists = $query->execute()->fetchObject();
+  if (!empty($exists)) {
+    return $exists;
+  }
+  return FALSE;
+}
+
+/**
  * Checks for a list title by node type.
  */
 function flag_lists_title_exists($title, $type) {

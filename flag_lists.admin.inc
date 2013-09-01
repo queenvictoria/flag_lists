@@ -249,14 +249,7 @@ function flag_lists_form_submit($form, $form_state, $account = NULL) {
   else {
     // New flag. Load the template row.
     $type = $form_state['values']['type'];
-    $query = db_select('flag', 'f');
-    $query->leftJoin('flag_lists_types', 'fl', 'f.name = fl.name');
-    $query->fields('f')
-      ->fields('fl')
-      ->condition('fl.type', $type);
-
-    $row = $query->execute()
-      ->fetchObject();
+    $row = flag_lists_template_row($type);
 
     $newflag = flag_flag::factory_by_entity_type('node');
 
@@ -274,6 +267,11 @@ function flag_lists_form_submit($form, $form_state, $account = NULL) {
     flag_lists_set_messages($flag);
     // Save it.
     flag_lists_save($flag, $account);
+    // @TODO success test
+    // @TODO add verb
+    drupal_set_message('Created new list \'' . $flag->title . '\'. View <a href="'
+      . url('user/' . $account->uid . '/flags/lists') .
+      '">your lists</a>.');
   }
 }
 
@@ -411,11 +409,11 @@ function flag_lists_create_template_form_submit($form, &$form_state) {
   $flag->title = t('List template') . ' ' . $form_state['values']['name'];
   $flag->save();
   // Enter the new template into flag_lists_types.
-  db_insert('flag_lists_types')
-    ->fields(array(
-      'name' => $flag->name,
-    ))
-    ->execute();
+  // db_insert('flag_lists_types')
+  //   ->fields(array(
+  //     'name' => $flag->name,
+  //   ))
+  //   ->execute();
   $form_state['redirect'] = FLAG_ADMIN_PATH . '/edit/' . $flag->name;
 }
 
