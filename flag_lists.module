@@ -281,8 +281,13 @@ function flag_lists_permission() {
 function flag_lists_form_alter(&$form, &$form_state, $form_id) {
   switch ($form_id) {
     case 'flag_form':
-      // A template flag should always have a record in the flag_lists_types table.
-      $result = db_select('flag_lists_types', 'f')->fields('f')->execute();
+      // A template flag should always have a record in the flag_types table.
+      $query = db_select('flag', 'f');
+      $query->join('flag_types', 'ft', 'f.fid = ft.fid');
+      $query->condition('f.name', 'fl_template%', 'LIKE');
+      $query->addField('f', 'name');
+      $query->addField('ft', 'type');
+      $result = $query->execute();
       foreach ($result as $type) {
         $types[$type->name] = $type->type;
       }
@@ -600,11 +605,14 @@ function flag_lists_template_validate($form, &$form_state) {
   $types = array_filter($form_state['values']['types']);
   $errors = array();
   foreach ($types as $type) {
-    $result = db_select('flag_lists_types', 'f')
-      ->fields('f')
-      ->condition('type', $type)
-      ->condition('name', $form_state['values']['name'], '<>')
-      ->execute();
+    // check we don't already have a flag_list for this type
+    $query = db_select('flag', 'f');
+    $query->join('flag_types', 'ft', 'f.fid = ft.fid');
+    $query->addField('f', 'name');
+    $query->addField('ft', 'type');
+    $query->condition('ft.type', $type);
+    $query->condition('f.name', $form_state['values']['name'], '<>');
+    $result = $query->execute();
     foreach ($result as $errors) {
       $content_types[] = $errors->type;
       $templates[] = $errors->name;
