@@ -1,8 +1,16 @@
 // $id: $
 
+
 // 3.x
+
+@TODO
+Remove defunct tables
+flag_lists_type
+flag_lists_content??
+
 Sept. 1, 2013
 Fix bug: New template creates a flag without a machine name.
+Fix bug: flag_lists_type table isn't well maintained. We should rely on the flag_types table instead which is being maintained by the flag module itself.
 
 Aug., 2013
 Feature: Change node to entity across the board.

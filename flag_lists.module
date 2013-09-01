@@ -1622,9 +1622,11 @@ function flag_lists_fix_link(&$link, $action) {
  * Checks for a list template for a content type.
  */
 function flag_lists_template_exists($type) {
-  $query = db_select('flag_lists_types')
-    ->condition('type', $type);
-  $query->addField('flag_lists_types', 'type');
+  $query = db_select('flag', 'f');
+  $query->join('flag_types', 'ft', 'f.fid = ft.fid');
+  $query->condition('f.name', 'fl_template%', 'LIKE');
+  $query->condition('ft.type', $type);
+  $query->addField('ft', 'type');
   $exists = $query->execute()->fetchField();
   if (!empty($exists)) {
     return TRUE;

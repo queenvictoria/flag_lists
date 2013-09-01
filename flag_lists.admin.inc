@@ -151,6 +151,11 @@ function flag_lists_form($form, $form_state, $name = NULL, $type = NULL) {
     drupal_access_denied();
   }
   if (!flag_lists_template_exists($type) && is_null($name)) {
+    drupal_set_message("There are no flag lists available for the '$type' bundle.", 'error');
+    global $user;
+    if ( $user->uid == 1 ) {
+      drupal_set_message('You can <a href="' . url('admin/structure/flags') . '">configure one here</a>.', 'warning');
+    }
     return;
   }
   // If name is numeric, then we have the fid, so get the name.
