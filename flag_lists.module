@@ -938,7 +938,7 @@ function flag_lists_get_user_flags($content_type = NULL, $account = NULL, $use_f
     ->fields('fl')
     ->condition('fl.uid', $account->uid);
   $query->leftJoin('flag', 'f', 'fl.pfid = f.fid');
-  $query->leftJoin('flag_lists_types', 'ft', 'ft.name = f.name');
+  $query->leftJoin('flag_types', 'ft', 'ft.fid = f.fid');
   $query->addField('ft', 'type');
   if ($content_type) {
     $query->condition('ft.type', $content_type);
