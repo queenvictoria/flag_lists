@@ -599,5 +599,3 @@ function flag_lists_generate_lists_form_submit($form, &$form_state) {
   }
   }
 }
-
-
