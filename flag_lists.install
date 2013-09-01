@@ -237,3 +237,33 @@ function flag_lists_update_7000() {
     }
   }
 }
+
+function flag_lists_update_7300() {
+  // Create a field to store the most recently used flag list
+  if (!field_info_field(FLAG_LISTS_LAST_FIELD)) {
+    $field = array(
+      'field_name' => FLAG_LISTS_LAST_FIELD,
+      'type' => 'text',
+    );
+    field_create_field($field);
+  }
+  $instance = array(
+    'field_name' => FLAG_LISTS_LAST_FIELD,
+    'entity_type' => 'user',
+    'label' => 'Recent ' . FLAG_LISTS_NOUN,
+    'bundle' => 'user',
+    'description' => 'Administration field that stores your most recently used '  . FLAG_LISTS_NOUN . '. Please don\'t change it--it will get overridden next time you add an item.',
+    'required' => TRUE,
+    'widget' => array(
+      'type' => 'text_textfield',
+    ),
+    'formatter' => array(
+      'label' => t('field formatter label'),
+      'format' => 'text_default'
+    ),
+    'settings' => array(),
+  );
+  try {
+    field_create_instance($instance);
+  } catch (Exception $e) {}
+}

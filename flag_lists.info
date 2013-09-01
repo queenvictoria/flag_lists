@@ -4,6 +4,7 @@ package = Flags
 dependencies[] = flag
 dependencies[] = token
 dependencies[] = views
+dependencies[] = entity
 
 files[] = flag_lists.admin.inc
 files[] = flag_lists.module
