@@ -1741,7 +1741,7 @@ function flag_lists_flagging_default($uid = NULL, $entity_id = NULL, $return_typ
   $type = $entity[$entity_id]->type;
   // get the default or last used flag list
   $flag = flag_lists_get_default_flag_list($uid, $type);
-  $list_collective_noun = t(ucfirst(variable_get('flag_lists_name', 'list')));
+  $list_collective_noun = FLAG_LISTS_NOUN;
   if ( ! $flag ) {
     drupal_set_message("Could not flag this. No flag available", 'error');
     drupal_goto(drupal_get_destination());
@@ -1960,7 +1960,7 @@ function flag_lists_flagging_edit_form($form, &$form_state, $account, $flagging_
     $account = $GLOBALS['user'];
   }
   $verb = $operation == 'edit' ? t('Change') : t('Add');
-  $list_collective_noun = ucfirst(variable_get('flag_lists_name', 'list'));
+  $list_collective_noun = FLAG_LISTS_NOUN
   // @TODO fix this
   $bundle = 'product';
   //  a list of possible lists
@@ -2123,7 +2123,7 @@ function flag_lists_flagging_edit_form_submit($form, &$form_state) {
     flag_lists_set_messages($flag);
     // Save it.
     $flag = flag_lists_save($flag, $account);
-    drupal_set_message("New " . variable_get('flag_lists_name', t('list')) . " " . ucfirst($title) . " created.");
+    drupal_set_message("New " . FLAG_LISTS_NOUN . " " . ucfirst($title) . " created.");
     // we dont get the flag returned unfortunately
     $flags = flag_lists_get_user_flags();
     foreach ( $flags as $flag ) {
