@@ -1938,16 +1938,16 @@ function flag_lists_flagging_edit_form_submit($form, &$form_state) {
   $entity_id = $form_state['values']['entity_id'];
   $flags = flag_lists_get_user_flags();
   $current_flag_list = $flags[$form_state['values']['current_flag_list']];
+  // get the type from the entity
+  $entity = entity_load("node", array($entity_id));
+  $type = $entity[$entity_id]->type;
+  // check for a name
+  $title = trim($form_state['values']['flag_list_title']);
 
   // Create a new list with the new name
   if ( $form_state['values']['flag_list'] == 'new' ) {
-    // check for a name
-    $title = trim($form_state['values']['flag_list_title']);
     // lifted from flag_lists_form_submit
         // New flag. Load the template row.
-    // get the type from the entity
-    $entity = entity_load("node", array($entity_id));
-    $type = $entity[$entity_id]->type;
 
     $query = db_select('flag', 'f');
     $query->join('flag_types', 'ft', 'f.fid = ft.fid');
@@ -1979,6 +1979,7 @@ function flag_lists_flagging_edit_form_submit($form, &$form_state) {
     flag_lists_set_messages($flag);
     // Save it.
     $flag = flag_lists_save($flag, $account);
+    drupal_set_message("New " . variable_get('flag_lists_name', t('list')) . " " . ucfirst($title) . " created.");
     // we dont get the flag returned unfortunately
     $flags = flag_lists_get_user_flags();
     foreach ( $flags as $flag ) {
@@ -1998,7 +1999,7 @@ function flag_lists_flagging_edit_form_submit($form, &$form_state) {
   $fcid = flag_lists_do_flag($flag, 'flag', $form_state['values']['entity_id'], $account, TRUE);
 
   // we need a new url as the flagging id has changed.
-  drupal_set_message("Flagging saved.");
+  drupal_set_message(ucfirst($type) . " saved to " . ucfirst($flag->title) . ".");
   drupal_goto('user/' . $account->uid . '/flags/lists/flagging/' . $fcid . '/edit');
 }
 
