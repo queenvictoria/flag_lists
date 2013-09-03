@@ -1247,6 +1247,25 @@ function flag_lists_get_flagging($fcid) {
 
 
 /**
+ * Get a single flagging by flag and entity.
+ *
+ * @param
+ *   The flag id.
+ *   The entity id.
+ */
+function flag_lists_get_flagging_by_entity($fid, $entity_id) {
+  $result = db_select('flag_lists_content', 'f')
+    ->fields('f')
+    ->condition('f.fid', $fid)
+    ->condition('f.entity_id', $entity_id)
+    ->execute()
+    ->fetch();
+
+  return $result;
+}
+
+
+/**
  * Implementation of hook_flag_link().
  *
  * When Flag uses a link type provided by this module, it will call this
@@ -1756,25 +1775,41 @@ function flag_lists_flagging_default($uid = NULL, $entity_id = NULL, $return_typ
   // is the node already a flagging?
   $sid = flag_get_sid($uid, TRUE);
   $flagged = _flag_lists_is_flagged($flag, $entity_id, $uid, $sid);
-
+  $fcid = null;
   if ( $flagged && $toggle ) {
   // Unflag it (old flag_lists style)
-    flag_lists_do_flag($flag, 'unflag', $entity_id);
-    $msg = t('Removed from your ' . $flag->title . ' ' . FLAG_LISTS_NOUN);
+    $fcid = flag_lists_do_flag($flag, 'unflag', $entity_id);
+    $msg = t('Removed from your \'' . $flag->title . '\' ' . FLAG_LISTS_NOUN);
   } else if ( ! $flagged ) {
     $path = implode('/', array('user', $uid, 'flags', 'lists', $flag->fid));
 
-    flag_lists_do_flag($flag, 'flag', $entity_id);
-    $msg = t('Saved to your ' . l($flag->title, $path) . ' ' . FLAG_LISTS_NOUN);
+    $fcid = flag_lists_do_flag($flag, 'flag', $entity_id);
+    $msg = t('Saved to your \'' . l($flag->title, $path) . '\' ' . FLAG_LISTS_NOUN . '.');
+    $msg_type = 'info';
   } else {
     // @TODO fix message
     // @TODO add a hidden field so we know that we should add another rather
     // than moving the flagging.
     $path = implode('/', array('user', $uid, 'flags', 'lists', $flag->fid));
     $operation = 'add';
-    $verb = 'Choose another ' . $list_collective_noun;
-    $msg = 'Already saved in ' . l($flag->title, $path) . '.';
+    $msg = 'Already saved in \'' . l($flag->title, $path) . '\'.';
     $msg_type = 'warning';
+    // get flagging by flag and entity
+    $flagging = flag_lists_get_flagging_by_entity($flag->fid, $entity_id);
+    $fcid = $flagging->fcid;
+  }
+  if ( $flagging ) {
+    $path = array(
+      'user',
+      $uid,
+      'flags',
+      'lists',
+      'flagging',
+      $fcid,
+      'edit',
+    );
+
+    $msg .= t(' Choose another ' . l(FLAG_LISTS_NOUN, implode('/', $path)) . '?');
   }
 
   drupal_set_message($msg, $msg_type);
@@ -1960,7 +1995,7 @@ function flag_lists_flagging_edit_form($form, &$form_state, $account, $flagging_
     $account = $GLOBALS['user'];
   }
   $verb = $operation == 'edit' ? t('Change') : t('Add');
-  $list_collective_noun = FLAG_LISTS_NOUN
+  $list_collective_noun = FLAG_LISTS_NOUN;
   // @TODO fix this
   $bundle = 'product';
   //  a list of possible lists
