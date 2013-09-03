@@ -1742,9 +1742,10 @@ function flag_lists_flagging_default($uid = NULL, $entity_id = NULL, $return_typ
     // @TODO fix message
     // @TODO add a hidden field so we know that we should add another rather
     // than moving the flagging.
+    $path = implode('/', array('user', $uid, 'flags', 'lists', $flag->fid));
     $operation = 'add';
     $verb = 'Choose another ' . $list_collective_noun;
-    $msg = 'Already saved in <span class="flag-lists-list-title">' . $flag->title . '</span>.';
+    $msg = 'Already saved in ' . l($flag->title, $path) . '.';
     $msg_type = 'warning';
   }
 
