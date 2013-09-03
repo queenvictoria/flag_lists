@@ -1412,6 +1412,22 @@ function flag_lists_insert($flag) {
 }
 
 /**
+ * Dogfooding our hook.
+ *
+ * When a flagging occurs, store the flag used (if it was a list)
+ */
+function flag_lists_flag_lists($flag, $account) {
+  error_log("hook callback");
+  drupal_set_message("hook callback");
+  // people are using user fields as the user data array is deprecated in D8
+  if ( ! $account )
+    $account = $GLOBALS['user'];
+  $user = entity_metadata_wrapper('user', $account);
+  $user->{FLAG_LISTS_LAST_FIELD} = $flag->name;
+  $user->save();
+}
+
+/**
  * Delete a flag_lists flag.
  *
  */
