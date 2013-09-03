@@ -3,6 +3,7 @@ core = 7.x
 package = Flags
 dependencies[] = flag
 dependencies[] = token
+dependencies[] = views
 
 files[] = flag_lists.admin.inc
 files[] = flag_lists.module
