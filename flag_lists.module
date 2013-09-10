@@ -3,6 +3,10 @@
 module_load_include('inc', 'flag', 'includes/flag.admin');
 module_load_include('inc', 'flag', 'flag');
 
+define('FLAG_LISTS_LAST_FIELD', 'field_list_last');
+define('FLAG_LISTS_DEFAULT', 'Favourites');
+define('FLAG_LISTS_NOUN', ucfirst(variable_get('flag_lists_name', 'list')));
+
 /**
  * @file
  * The Flag Lists module.
@@ -148,6 +152,17 @@ function flag_lists_menu() {
     'access arguments' => array('view flag lists'),
     'type' => MENU_CALLBACK,
   );
+  // an endpoint to add an entity to the default flag_list
+  // args are uid, entity id and return type
+  $items['user/%/flags/lists/flag/%/%'] = array(
+    'page callback' => 'flag_lists_flagging_default',
+    'page arguments' => array(1, 5, 6),
+    'access callback' => 'user_access',
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+    // 'delivery callback' => 'ajax_deliver',
+  );
+
   return $items;
 }
 
@@ -1075,6 +1090,11 @@ function theme_flag_lists_list($variables) {
       $items[] = $link;
     }
   }
+  // add to default
+  $default = TRUE;
+  if ($default && flag_lists_template_exists($content_type)) {
+    $items[] = l(t('Add to default @name', array('@name' => variable_get('flag_lists_name', t('list')))), 'user/' . $user->uid . '/flags/lists/flag/' . $entity_id . '/no-js', array('query' => drupal_get_destination()));
+  }
   if ($create && flag_lists_template_exists($content_type)) {
     $items[] = l(t('Make a new @name', array('@name' => variable_get('flag_lists_name', t('list')))), 'flag-lists/add/' . $content_type, array('query' => drupal_get_destination()));
   }
@@ -1227,6 +1247,25 @@ function flag_lists_get_flagging($fcid) {
 
 
 /**
+ * Get a single flagging by flag and entity.
+ *
+ * @param
+ *   The flag id.
+ *   The entity id.
+ */
+function flag_lists_get_flagging_by_entity($fid, $entity_id) {
+  $result = db_select('flag_lists_content', 'f')
+    ->fields('f')
+    ->condition('f.fid', $fid)
+    ->condition('f.entity_id', $entity_id)
+    ->execute()
+    ->fetch();
+
+  return $result;
+}
+
+
+/**
  * Implementation of hook_flag_link().
  *
  * When Flag uses a link type provided by this module, it will call this
@@ -1370,6 +1409,22 @@ function flag_lists_insert($flag) {
     ->execute();
   $flag->name = 'flag_lists_' . $flag->uid . '_' . $flag->fid;
   flag_lists_update($flag);
+}
+
+/**
+ * Dogfooding our hook.
+ *
+ * When a flagging occurs, store the flag used (if it was a list)
+ */
+function flag_lists_flag_lists($flag, $account) {
+  error_log("hook callback");
+  drupal_set_message("hook callback");
+  // people are using user fields as the user data array is deprecated in D8
+  if ( ! $account )
+    $account = $GLOBALS['user'];
+  $user = entity_metadata_wrapper('user', $account);
+  $user->{FLAG_LISTS_LAST_FIELD} = $flag->name;
+  $user->save();
 }
 
 /**
@@ -1713,6 +1768,146 @@ function flag_lists_get_templates() {
 
 
 /**
+ * Add a flagging for the entity to the default flag_list
+ */
+function flag_lists_flagging_default($uid = NULL, $entity_id = NULL, $return_type = 'ajax') {
+  $entity = entity_load('node', array($entity_id));
+
+  $type = $entity[$entity_id]->type;
+  // get the default or last used flag list
+  $flag = flag_lists_get_default_flag_list($uid, $type);
+  $list_collective_noun = FLAG_LISTS_NOUN;
+  if ( ! $flag ) {
+    drupal_set_message("Could not flag this. No flag available", 'error');
+    drupal_goto(drupal_get_destination());
+  }
+
+  $msg_type = 'info';
+  // pass toggle through so we maintain whatever state we are in
+  $toggle = false;
+  if ( array_key_exists('toggle', $_REQUEST) )
+    $toggle = $_REQUEST['toggle'];
+
+  // is the node already a flagging?
+  $sid = flag_get_sid($uid, TRUE);
+  $flagged = _flag_lists_is_flagged($flag, $entity_id, $uid, $sid);
+  $fcid = null;
+  if ( $flagged && $toggle ) {
+  // Unflag it (old flag_lists style)
+    $fcid = flag_lists_do_flag($flag, 'unflag', $entity_id);
+    $msg = t('Removed from your \'' . $flag->title . '\' ' . FLAG_LISTS_NOUN);
+  } else if ( ! $flagged ) {
+    $path = implode('/', array('user', $uid, 'flags', 'lists', $flag->fid));
+
+    $fcid = flag_lists_do_flag($flag, 'flag', $entity_id);
+    $msg = t('Saved to your \'' . l($flag->title, $path) . '\' ' . FLAG_LISTS_NOUN . '.');
+    $msg_type = 'info';
+  } else {
+    // @TODO fix message
+    // @TODO add a hidden field so we know that we should add another rather
+    // than moving the flagging.
+    $path = implode('/', array('user', $uid, 'flags', 'lists', $flag->fid));
+    $operation = 'add';
+    $msg = 'Already saved in \'' . l($flag->title, $path) . '\'.';
+    $msg_type = 'warning';
+    // get flagging by flag and entity
+    $flagging = flag_lists_get_flagging_by_entity($flag->fid, $entity_id);
+    $fcid = $flagging->fcid;
+  }
+  if ( $flagging ) {
+    $path = array(
+      'user',
+      $uid,
+      'flags',
+      'lists',
+      'flagging',
+      $fcid,
+      'edit',
+    );
+
+    $msg .= t(' Choose another ' . l(FLAG_LISTS_NOUN, implode('/', $path)) . '?');
+  }
+
+  drupal_set_message($msg, $msg_type);
+  drupal_goto(drupal_get_destination());
+}
+
+/*
+ * Return the most recently used flag, the default list,
+ * or a newly created default list.
+ * @TODO correctly match the type
+ */
+function flag_lists_get_default_flag_list($uid = NULL, $type) {
+  $flag_list = NULL;
+
+  if ( $uid ) {
+    $account = user_load($uid);
+  } else {
+    $account = $GLOBALS['user'];
+  }
+  $flags = flag_lists_get_user_flags();
+
+  // Get the default or last used flag list
+  $user = entity_metadata_wrapper('user', $account);
+
+  $last_flag_list = $user->{FLAG_LISTS_LAST_FIELD}->value();
+  if ( ! empty($last_flag_list) && array_key_exists($last_flag_list, $flags) ) {
+    $flag_list = $flags[$last_flag_list];
+  } else {
+  // if we dont have the default / recent list get a list of lists
+    foreach ( $flags as $flag_name => $flag ) {
+      if ( $flag->module == 'flag_lists' ) {
+        $flag_list = $flag;
+        break;
+      }
+    }
+  }
+  // @TODO create a new list
+  if ( ! $flag_list ) {
+    // create a default list
+    $title = FLAG_LISTS_DEFAULT;
+// @TODO this fails if the fl_template hasn't had its type set to product yet.
+    $query = db_select('flag', 'f');
+    $query->leftJoin('flag_types', 'ft', 'f.fid = ft.fid');
+    $query->fields('f')
+      ->fields('f')
+      ->condition('ft.type', $type);
+
+    $row = $query->execute()
+      ->fetchObject();
+    if ( ! $row->fid ) {
+      drupal_set_message("Please <a href='/admin/structure/flags/manage/fl_template'>enable</a> the flag lists template.");
+      return;
+    }
+
+    $newflag = flag_flag::factory_by_entity_type('node');
+
+    $flag = $newflag->factory_by_row($row);
+    // The template fid becomes the flag_lists parent flag.
+    $flag->pfid = $row->fid;
+    // The fid is NULL because this is really a new flag.
+    $flag->fid = NULL;
+    // The name is created in the save function.
+    $flag->name = NULL;
+    $flag->link_type = 'toggle';
+    $flag->title = $title;
+    $flag->types = array($type);
+    $flag->uid = $account->uid;
+    flag_lists_set_messages($flag);
+    // Save it.
+    $flag_list = flag_lists_save($flag, $account);
+    // we dont get the flag_list returned unfortunately
+    $flag_lists = flag_lists_get_user_flags();
+    foreach ( $flag_lists as $flag_list ) {
+      if ( $flag->title == $title ) {
+        break;
+      }
+    }
+  }
+  return $flag_list;
+}
+
+/**
  * Implements hook_token_info().
  */
 function flag_lists_token_info() {
@@ -1816,7 +2011,7 @@ function flag_lists_flagging_edit_form($form, &$form_state, $account, $flagging_
     $account = $GLOBALS['user'];
   }
   $verb = $operation == 'edit' ? t('Change') : t('Add');
-  $list_collective_noun = ucfirst(variable_get('flag_lists_name', 'list'));
+  $list_collective_noun = FLAG_LISTS_NOUN;
   // @TODO fix this
   $bundle = 'product';
   //  a list of possible lists
@@ -1979,7 +2174,7 @@ function flag_lists_flagging_edit_form_submit($form, &$form_state) {
     flag_lists_set_messages($flag);
     // Save it.
     $flag = flag_lists_save($flag, $account);
-    drupal_set_message("New " . variable_get('flag_lists_name', t('list')) . " " . ucfirst($title) . " created.");
+    drupal_set_message("New " . FLAG_LISTS_NOUN . " " . ucfirst($title) . " created.");
     // we dont get the flag returned unfortunately
     $flags = flag_lists_get_user_flags();
     foreach ( $flags as $flag ) {
