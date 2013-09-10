@@ -1417,8 +1417,6 @@ function flag_lists_insert($flag) {
  * When a flagging occurs, store the flag used (if it was a list)
  */
 function flag_lists_flag_lists($flag, $account) {
-  error_log("hook callback");
-  drupal_set_message("hook callback");
   // people are using user fields as the user data array is deprecated in D8
   if ( ! $account )
     $account = $GLOBALS['user'];
@@ -1814,7 +1812,7 @@ function flag_lists_flagging_default($uid = NULL, $entity_id = NULL, $return_typ
     $flagging = flag_lists_get_flagging_by_entity($flag->fid, $entity_id);
     $fcid = $flagging->fcid;
   }
-  if ( $flagging ) {
+  if ( $fcid ) {
     $path = array(
       'user',
       $uid,
