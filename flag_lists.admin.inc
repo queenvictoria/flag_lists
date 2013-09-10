@@ -54,7 +54,7 @@ function theme_flag_lists_admin_page($variables) {
       $rows[] = array(
         $flag->name,
         $flag->title,
-        $flag->content_type,
+        $flag->entity_type,
         $owner,
         $flag->types ? implode(', ', $flag->types) : '-',
         $ops,
