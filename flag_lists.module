@@ -240,7 +240,7 @@ function theme_flag_lists_user_list($variables) {
   drupal_set_title($flag->title);
   $content = flag_lists_get_flagged_content($fid, $uid);
   foreach ($content as $item) {
-    if ($item->content_type == 'node') {
+    if ($item->entity_type == 'node') {
       $node = node_load($item->entity_id);
       $items[] = l($node->title, 'node/' . $node->nid);
     }
@@ -960,7 +960,7 @@ function flag_lists_is_owner($action, $name) {
 /**
  * Get a single user's lists, and merge in flag module flags
  */
-function flag_lists_get_user_flags($content_type = NULL, $account = NULL, $use_flags = FALSE) {
+function flag_lists_get_user_flags($bundle_type = NULL, $account = NULL, $use_flags = FALSE) {
   $flags = array();
   $lists = array();
   if (!isset($account)) {
@@ -973,8 +973,8 @@ function flag_lists_get_user_flags($content_type = NULL, $account = NULL, $use_f
   $query->leftJoin('flag', 'f', 'fl.pfid = f.fid');
   $query->leftJoin('flag_types', 'ft', 'ft.fid = f.fid');
   $query->addField('ft', 'type');
-  if ($content_type) {
-    $query->condition('ft.type', $content_type);
+  if ($bundle_type) {
+    $query->condition('ft.type', $bundle_type);
   }
 
   $result = $query->execute();
@@ -989,7 +989,7 @@ function flag_lists_get_user_flags($content_type = NULL, $account = NULL, $use_f
   }
   // Get regular flags.
   if ($use_flags) {
-    $flags = flag_get_flags('node', $content_type, $account);
+    $flags = flag_get_flags('node', $bundle_type, $account);
 
     // Strip out any list templates
     foreach ($flags as $key => $flag) {
@@ -1515,7 +1515,7 @@ function flag_lists_page($action = NULL, $flag_name = NULL, $entity_id = NULL) {
       'newLink' => $new_link,
       // Further information for the benefit of custom JavaScript event handlers:
       'contentId' => $entity_id,
-      'contentType' => $flag->content_type,
+      'contentType' => $flag->entity_type,
       'flagName' => $flag->name,
       'flagStatus' => $action,
     ));
