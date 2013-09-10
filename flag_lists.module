@@ -2301,7 +2301,6 @@ function flag_lists_flagging_edit_form_submit($form, &$form_state) {
     $form_state['ajax_commands'][] = ctools_modal_command_dismiss();
 
   // Tell the browser to replace the old link with the new one.
-  // @todo fix our link
     if ( $old_fcid ) {
       $form_state['ajax_commands'][] = ajax_command_replace('.ctools-modal-flag-lists-modal-' . $old_fcid, $link);
     }
