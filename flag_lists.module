@@ -144,6 +144,15 @@ function flag_lists_menu() {
     'file' => 'flag_lists.module',
     'type' => MENU_CALLBACK,
   );
+  $items['user/%user/flags/lists/flagging/%/%/%ctools_js'] = array(
+    'title' => 'Change ' . ucfirst(variable_get('flag_lists_name', 'list')),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('flag_lists_flagging_edit_form', 1, 5, 6, 7),
+    'access callback' => 'user_access',
+    'access arguments' => array('view flag lists'),
+    'file' => 'flag_lists.module',
+    'type' => MENU_CALLBACK,
+  );
   $items['user/%user/flags/lists/%'] = array(
     'title' => ucfirst(variable_get('flag_lists_name', 'list')) . ' content',
     'page callback' => 'flag_lists_user_list',
@@ -1813,6 +1822,9 @@ function flag_lists_flagging_default($uid = NULL, $entity_id = NULL, $return_typ
     $fcid = $flagging->fcid;
   }
   if ( $fcid ) {
+    ctools_include('ajax');
+    ctools_include('modal');
+
     $path = array(
       'user',
       $uid,
@@ -1821,9 +1833,11 @@ function flag_lists_flagging_default($uid = NULL, $entity_id = NULL, $return_typ
       'flagging',
       $fcid,
       'edit',
+      'nojs',
     );
-
-    $msg .= t(' Choose another ' . l(FLAG_LISTS_NOUN, implode('/', $path)) . '?');
+    $button = ctools_modal_text_button(FLAG_LISTS_NOUN, implode('/', $path), FLAG_LISTS_NOUN, 'ctools-modal-flag-lists-modal-style');
+    // $button = l(FLAG_LISTS_NOUN, implode('/', $path));
+    $msg .= t(' Choose another ' . $button . '?');
   }
 
   drupal_set_message($msg, $msg_type);
@@ -1988,16 +2002,68 @@ function flag_lists_views_form_substitutions() {
   );
 }
 
+/**
+ * Add Ctools modal settings for the change form modal.
+ * http://drupion.com/blog/10-steps-creating-ctools-modal-window-drupal-7
+ */
+function flag_lists_preprocess_html(&$views) {
+  if ( TRUE ) {
+      // Include the CTools tools that we need.
+      ctools_include('ajax');
+      ctools_include('modal');
+
+// Add CTools' javascript to the page.
+      ctools_modal_add_js();
+
+// Create our own javascript that will be used to theme a modal.
+      $flag_lists_style = array(
+        'flag-lists-modal-style' => array(
+          'modalSize' => array(
+            'type' => 'fixed',
+            'width' => 600,
+            'height' => 240,
+            'addWidth' => 10,
+            'addHeight' => 10,
+            'contentRight' => 0,
+            'contentBottom' => 0,
+          ),
+          'modalOptions' => array(
+            'opacity' => .6,
+            'background-color' => '#684C31',
+          ),
+          'animation' => 'fadeIn',
+          'modalTheme' => 'FlagListsModal', // the js prototype
+          // Customize the AJAX throbber like so:
+          // This function assumes the images are inside the module directory's "images"
+          // directory:
+          // ctools_image_path($image, $module = 'ctools', $dir = 'images')
+          'throbber' => theme('image', array('path' => ctools_image_path('ajax-loader.gif', 'flag-lists'), 'alt' => t('Loading...'), 'title' => t('Loading'))),
+          'closeImage' => theme('image', array('path' => ctools_image_path('modal-close.png', 'flag-lists'), 'alt' => t('Close window'), 'title' => t('Close window'))),
+        ),
+      );
+    // Add the settings array defined above to Drupal 7's JS settings:
+    drupal_add_js($flag_lists_style, 'setting');
+    // The function below assumes the flag-lists.js file resides in [module_dir]/js
+    ctools_add_js('flag_lists_ctools', 'flag_lists');
+    // The function below assumes the flag-lists.css file resides in [module_dir]/css
+    ctools_add_css('flag_lists_ctools', 'flag_lists');
+  }
+}
 
 /**
  * A form to allow changing to which list the flagging's is flagged.
  */
-function flag_lists_flagging_edit_form($form, &$form_state, $account, $flagging_id, $operation='edit') {
+function flag_lists_flagging_edit_form($form, &$form_state, $account, $flagging_id, $operation='edit', $js=NULL) {
 // function flag_lists_flagging_edit_form($form, &$form_state, $current_flag_list, $entity_id, $operation) {
+  if ( $js ) {
+    // Required includes for ctools to work:
+    ctools_include('modal');
+    ctools_include('ajax');
+  }
 //  load the flagging from it's id.
   $flagging = flag_lists_get_flagging($flagging_id);
   if ( ! $flagging ) {
-    drupal_set_message("That flag doesn't exist. [ $flagging_id ]");
+    drupal_set_message("That flag doesn't exist. [ $flagging_id ]", 'error');
     return;
   }
   $current_flag_list_id = $flagging->fid;
@@ -2096,6 +2162,10 @@ function flag_lists_flagging_edit_form($form, &$form_state, $account, $flagging_
     ),
   );
   */
+  if ( $js ) {
+    $contents = render($form);
+    return ctools_modal_render(NULL, $contents) ;
+  }
   return $form;
 }
 
@@ -2172,7 +2242,7 @@ function flag_lists_flagging_edit_form_submit($form, &$form_state) {
     flag_lists_set_messages($flag);
     // Save it.
     $flag = flag_lists_save($flag, $account);
-    drupal_set_message("New " . FLAG_LISTS_NOUN . " " . ucfirst($title) . " created.");
+    drupal_set_message("New " . FLAG_LISTS_NOUN . " " . ucfirst($title) . " created.", 'status');
     // we dont get the flag returned unfortunately
     $flags = flag_lists_get_user_flags();
     foreach ( $flags as $flag ) {
@@ -2192,7 +2262,7 @@ function flag_lists_flagging_edit_form_submit($form, &$form_state) {
   $fcid = flag_lists_do_flag($flag, 'flag', $form_state['values']['entity_id'], $account, TRUE);
 
   // we need a new url as the flagging id has changed.
-  drupal_set_message(ucfirst($type) . " saved to " . ucfirst($flag->title) . ".");
+  drupal_set_message(ucfirst($type) . " saved to " . ucfirst($flag->title) . ".", 'status');
   drupal_goto('user/' . $account->uid . '/flags/lists/flagging/' . $fcid . '/edit');
 }
 
