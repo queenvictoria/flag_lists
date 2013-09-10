@@ -1822,9 +1822,17 @@ function flag_lists_flagging_default($uid = NULL, $entity_id = NULL, $return_typ
     $fcid = $flagging->fcid;
   }
   if ( $fcid ) {
+    $button = _flag_lists_get_change_link($uid, $fcid);
+    $msg .= t(' Choose another ' . $button . '?');
+  }
+
+  drupal_set_message($msg, $msg_type);
+  drupal_goto(drupal_get_destination());
+}
+
+function _flag_lists_get_change_link($uid, $fcid) {
     ctools_include('ajax');
     ctools_include('modal');
-
     $path = array(
       'user',
       $uid,
@@ -1835,13 +1843,8 @@ function flag_lists_flagging_default($uid = NULL, $entity_id = NULL, $return_typ
       'edit',
       'nojs',
     );
-    $button = ctools_modal_text_button(FLAG_LISTS_NOUN, implode('/', $path), FLAG_LISTS_NOUN, 'ctools-modal-flag-lists-modal-style');
-    // $button = l(FLAG_LISTS_NOUN, implode('/', $path));
-    $msg .= t(' Choose another ' . $button . '?');
-  }
-
-  drupal_set_message($msg, $msg_type);
-  drupal_goto(drupal_get_destination());
+    return ctools_modal_text_button(FLAG_LISTS_NOUN, implode('/', $path), FLAG_LISTS_NOUN, 'ctools-modal-flag-lists-modal-style ctools-modal-flag-lists-modal-' . $fcid);
+    // return l(FLAG_LISTS_NOUN, implode('/', $path));
 }
 
 /*
@@ -2055,9 +2058,6 @@ function flag_lists_preprocess_html(&$views) {
  * A form to allow changing to which list the flagging's is flagged.
  */
 function flag_lists_flagging_edit_form($form, &$form_state, $account, $flagging_id, $operation='edit') {
-  error_log(print_r($account, TRUE));
-  error_log(print_r($flagging_id, TRUE));
-  error_log(print_r($operation, TRUE));
 // function flag_lists_flagging_edit_form($form, &$form_state, $current_flag_list, $entity_id, $operation) {
 //  load the flagging from it's id.
   $flagging = flag_lists_get_flagging($flagging_id);
@@ -2175,7 +2175,7 @@ function flag_lists_flagging_edit_form_js($account, $flagging_id, $operation='ed
     ctools_include('modal');
 
     $form_state = array(
-      'ajax' => TRUE,
+      'ajax' => $ajax,
       'title' => t('Change ' . FLAG_LISTS_NOUN),
       );
     $form_state['build_info']['args'] = array($account, $flagging_id, $operation);
@@ -2285,18 +2285,36 @@ function flag_lists_flagging_edit_form_submit($form, &$form_state) {
   }
 
   // If its already in the flag_list we offer to add to another so don't remove.
+  $old_fcid = NULL;
   if ( $form_state['values']['operatation'] == 'edit' ) {
-    $fcid = flag_lists_do_flag($current_flag_list, 'unflag', $form_state['values']['entity_id'], $account, TRUE);
+    $old_fcid = flag_lists_do_flag($current_flag_list, 'unflag', $form_state['values']['entity_id'], $account, TRUE);
   }
   $fcid = flag_lists_do_flag($flag, 'flag', $form_state['values']['entity_id'], $account, TRUE);
 
+  // @TODO Fix
+  if ( $form_state['ajax'] ) {
+    $link = _flag_lists_get_change_link($account->uid, $fcid);
+//  Also return AJAX style messages
+//    drupal_set_message(ucfirst($type) . " saved to " . ucfirst($flag->title) . ".", 'status');
+
+// Tell the browser to close the modal.
+    $form_state['ajax_commands'][] = ctools_modal_command_dismiss();
+
+  // Tell the browser to replace the old link with the new one.
+  // @todo fix our link
+    if ( $old_fcid ) {
+      $form_state['ajax_commands'][] = ajax_command_replace('.ctools-modal-flag-lists-modal-' . $old_fcid, $link);
+    }
+  } else {
   // we need a new url as the flagging id has changed.
-  drupal_set_message(ucfirst($type) . " saved to " . ucfirst($flag->title) . ".", 'status');
-  drupal_goto('user/' . $account->uid . '/flags/lists/flagging/' . $fcid . '/edit');
+    drupal_set_message(ucfirst($type) . " saved to " . ucfirst($flag->title) . ".", 'status');
+    drupal_goto('user/' . $account->uid . '/flags/lists/flagging/' . $fcid . '/edit');
+  }
 }
 
 /**
  * Once the form is completed return the reformatted link button.
+ * @todo Is this being used?
  */
 function flag_lists_flagging_edit_form_callback($form, &$form_state) {
   $entity_id = $form_state['values']['entity_id'];
