@@ -1780,7 +1780,7 @@ function flag_lists_flagging_default($uid = NULL, $entity_id = NULL, $return_typ
     drupal_goto(drupal_get_destination());
   }
 
-  $msg_type = 'info';
+  $msg_type = 'status';
   // pass toggle through so we maintain whatever state we are in
   $toggle = false;
   if ( array_key_exists('toggle', $_REQUEST) )
@@ -1799,7 +1799,7 @@ function flag_lists_flagging_default($uid = NULL, $entity_id = NULL, $return_typ
 
     $fcid = flag_lists_do_flag($flag, 'flag', $entity_id);
     $msg = t('Saved to your \'' . l($flag->title, $path) . '\' ' . FLAG_LISTS_NOUN . '.');
-    $msg_type = 'info';
+    $msg_type = 'status';
   } else {
     // @TODO fix message
     // @TODO add a hidden field so we know that we should add another rather
