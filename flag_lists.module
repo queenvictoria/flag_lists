@@ -146,8 +146,8 @@ function flag_lists_menu() {
   );
   $items['user/%user/flags/lists/flagging/%/%/%ctools_js'] = array(
     'title' => 'Change ' . ucfirst(variable_get('flag_lists_name', 'list')),
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('flag_lists_flagging_edit_form', 1, 5, 6, 7),
+    'page callback' => 'flag_lists_flagging_edit_form_js',
+    'page arguments' => array(1, 5, 6, 7),
     'access callback' => 'user_access',
     'access arguments' => array('view flag lists'),
     'file' => 'flag_lists.module',
@@ -2005,6 +2005,7 @@ function flag_lists_views_form_substitutions() {
 /**
  * Add Ctools modal settings for the change form modal.
  * http://drupion.com/blog/10-steps-creating-ctools-modal-window-drupal-7
+ * http://deeson-online.co.uk/labs/insert-form-pop-modal-ctools-and-drupal-7
  */
 function flag_lists_preprocess_html(&$views) {
   if ( TRUE ) {
@@ -2053,13 +2054,11 @@ function flag_lists_preprocess_html(&$views) {
 /**
  * A form to allow changing to which list the flagging's is flagged.
  */
-function flag_lists_flagging_edit_form($form, &$form_state, $account, $flagging_id, $operation='edit', $js=NULL) {
+function flag_lists_flagging_edit_form($form, &$form_state, $account, $flagging_id, $operation='edit') {
+  error_log(print_r($account, TRUE));
+  error_log(print_r($flagging_id, TRUE));
+  error_log(print_r($operation, TRUE));
 // function flag_lists_flagging_edit_form($form, &$form_state, $current_flag_list, $entity_id, $operation) {
-  if ( $js ) {
-    // Required includes for ctools to work:
-    ctools_include('modal');
-    ctools_include('ajax');
-  }
 //  load the flagging from it's id.
   $flagging = flag_lists_get_flagging($flagging_id);
   if ( ! $flagging ) {
@@ -2162,11 +2161,41 @@ function flag_lists_flagging_edit_form($form, &$form_state, $account, $flagging_
     ),
   );
   */
-  if ( $js ) {
-    $contents = render($form);
-    return ctools_modal_render(NULL, $contents) ;
-  }
   return $form;
+}
+
+// function flag_lists_flagging_edit_form($form, &$form_state, $account, $flagging_id, $operation='edit') {
+
+function flag_lists_flagging_edit_form_js($account, $flagging_id, $operation='edit', $ajax=NULL) {
+  $form_id = 'flag_lists_flagging_edit_form';
+  error_log("returning $form_id");
+  if ( $ajax ) {
+    error_log("via ajax");
+    ctools_include('ajax');
+    ctools_include('modal');
+
+    $form_state = array(
+      'ajax' => TRUE,
+      'title' => t('Change ' . FLAG_LISTS_NOUN),
+      );
+    $form_state['build_info']['args'] = array($account, $flagging_id, $operation);
+
+    // Use ctools to generate ajax instructions for the browser to create
+    // a form in a modal popup.
+    $output = ctools_modal_form_wrapper($form_id, $form_state);
+
+    // If the form has been submitted, there may be additional instructions
+    // such as dismissing the modal popup.
+    if (!empty($form_state['ajax_commands'])) {
+      $output = $form_state['ajax_commands'];
+    }
+
+    // Return the ajax instructions to the browser via ajax_render().
+    print ajax_render($output);
+    drupal_exit();
+  } else {
+    return drupal_get_form($form_id, $account, $flagging_id, $operation);
+  }
 }
 
 function flag_lists_flagging_edit_form_validate($form, &$form_state) {
