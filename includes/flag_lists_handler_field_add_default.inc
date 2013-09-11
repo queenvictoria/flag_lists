@@ -43,8 +43,24 @@ class flag_lists_handler_field_add_default extends views_handler_field {
     $this->add_additional_fields();
   }
 
+  function option_definition() {
+    $options = parent::option_definition();
+    $options['text'] = array('default' => '', 'translatable' => TRUE);
+    return $options;
+  }
+
+  function options_form(&$form, &$form_state) {
+    parent::options_form($form, $form_state);
+    $form['text'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Text for link'),
+      '#default_value' => $this->options['text'],
+    );
+  }
+
   function render($values) {
+    $text = !empty($this->options['text']) ? $this->options['text'] : NULL;
     $entity_id = $values->entity;
-    return flag_lists_default_link($entity_id, FALSE);
+    return flag_lists_default_link($entity_id, FALSE, NULL, $text);
   }
 }

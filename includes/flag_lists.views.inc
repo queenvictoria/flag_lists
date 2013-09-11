@@ -107,16 +107,6 @@ function flag_lists_views_data_alter(&$data) {
     ),
   );
 
-  //$data['views_entity_node']['table']['group'] = t('Flag lists');
-
-  $data['views_entity_node']['flag_lists_default_link'] = array(
-    'field' => array(
-      'title' => t('Default flag lists link'),
-      'help' => t('Flag this content into the default flag list.'),
-      'handler' => 'flag_lists_handler_field_add_default',
-    ),
-  );
-
   // Add the checkbox for flagging nodes VBO style, minus batch API
   foreach (entity_get_info() as $entity_type => $info) {
     if (isset($info['base table']) && $info['base table'] == 'node' && isset($data[$info['base table']])) {
@@ -132,6 +122,15 @@ function flag_lists_views_data_alter(&$data) {
       break;
     }
   }
+
+  $data['views_entity_node']['table']['group'] = t('Content');
+  $data['views_entity_node']['flag_lists_default_link'] = array(
+    'field' => array(
+      'title' => t('Default flag lists link'),
+      'help' => t('Flag this content into the default flag list.'),
+      'handler' => 'flag_lists_handler_field_add_default',
+    ),
+  );
 }
 
 /**
