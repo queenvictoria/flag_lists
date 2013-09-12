@@ -2198,6 +2198,16 @@ function flag_lists_flagging_edit_form_submit($form, &$form_state) {
   drupal_goto('user/' . $account->uid . '/flags/lists/flagging/' . $fcid . '/edit');
 }
 
+
+function flag_lists_default_link($entity_id, $toggle=FALSE, $uid=NULL, $text=NULL) {
+  if (!isset($uid)) {
+    $account = $GLOBALS['user'];
+    $uid = $account->uid;
+  }
+  $text = $text ? $text : 'Add to your default ' . FLAG_LISTS_NOUN;
+  return l($text, implode('/', array('user', $uid, 'flags', 'lists', 'flag', $entity_id)));
+}
+
 /**
  * Once the form is completed return the reformatted link button.
  */

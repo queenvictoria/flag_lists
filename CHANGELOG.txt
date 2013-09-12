@@ -12,6 +12,13 @@
 * It doesn't make sense to have flag list links on content (teaser, full, rss). This is a good feature for the add to default list to override. Either disable them in the flag edit form or override with add to default.
 * A better test is whether module is flag_lists rather than LIKING the name.
 
+@TODO Add to default
+* Need the flag_save hook from menus to update the last used field
+* Need to offer to change the flagging
+* Need to ajaxify
+* Need to update views handlers paths.
+* Should mirror flag/add path not flag_lists/user paths.
+
 Sept. 1, 2013
 Fix bug: New template creates a flag without a machine name.
 Fix bug: flag_lists_types table isn't well maintained. We should rely on the flag_types table instead which is being maintained by the flag module itself.

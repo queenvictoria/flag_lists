@@ -22,6 +22,10 @@ function flag_lists_views_handlers() {
         'parent' => 'views_handler_field',
         'file' => 'flag_lists_handler_field_template.inc',
       ),
+      'flag_lists_handler_field_add_default' => array(
+        'parent' => 'views_handler_field',
+        'file' => 'flag_lists_handler_field_add_default.inc',
+      ),
       'flag_lists_handler_field_list_edit' => array(
         'parent' => 'views_handler_field',
         'file' => 'flag_lists_handler_field_list_edit.inc',
@@ -118,6 +122,15 @@ function flag_lists_views_data_alter(&$data) {
       break;
     }
   }
+
+  $data['views_entity_node']['table']['group'] = t('Content');
+  $data['views_entity_node']['flag_lists_default_link'] = array(
+    'field' => array(
+      'title' => t('Default flag lists link'),
+      'help' => t('Flag this content into the default flag list.'),
+      'handler' => 'flag_lists_handler_field_add_default',
+    ),
+  );
 }
 
 /**
@@ -252,6 +265,7 @@ function flag_lists_views_data() {
         'handler' => 'flag_lists_handler_field_list_delete',
       ),
     ),
+
   );
 
   // Flag_lists_content data
