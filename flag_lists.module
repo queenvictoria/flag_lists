@@ -1814,7 +1814,7 @@ function flag_lists_flagging_default($uid = NULL, $entity_id = NULL, $return_typ
     $flagging = flag_lists_get_flagging_by_entity($flag->fid, $entity_id);
     $fcid = $flagging->fcid;
   }
-  if ( $flagging ) {
+  if ( $fcid ) {
     $path = array(
       'user',
       $uid,
@@ -2205,7 +2205,18 @@ function flag_lists_default_link($entity_id, $toggle=FALSE, $uid=NULL, $text=NUL
     $uid = $account->uid;
   }
   $text = $text ? $text : 'Add to your default ' . FLAG_LISTS_NOUN;
-  return l($text, implode('/', array('user', $uid, 'flags', 'lists', 'flag', $entity_id)));
+  $options = array(
+    'attributes' => array(
+      'class' => array(
+        'flag-lists-add-default-link',
+        'use-js', //  signal drupal to convert to an ajax callback
+      ),
+      'id' => 'flag_lists-add-default-' . $entity_id,
+    ),
+    'query' => drupal_get_destination(),
+  );
+
+  return l($text, implode('/', array('user', $uid, 'flags', 'lists', 'flag', $entity_id, 'no-js')), $options);
 }
 
 /**

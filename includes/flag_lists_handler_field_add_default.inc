@@ -60,7 +60,6 @@ class flag_lists_handler_field_add_default extends views_handler_field {
 
   function render($values) {
     $text = !empty($this->options['text']) ? $this->options['text'] : NULL;
-    $entity_id = $values->entity;
-    return flag_lists_default_link($entity_id, FALSE, NULL, $text);
+    return flag_lists_default_link($values->nid, FALSE, NULL, $text);
   }
 }
