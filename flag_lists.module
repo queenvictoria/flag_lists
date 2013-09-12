@@ -1389,7 +1389,7 @@ function flag_lists_update($flag) {
     ))
     ->condition('fid', $flag->fid)
     ->execute();
-  module_invoke_all('flag_lists', $flag, $account);
+  module_invoke_all('flag_lists', $flag);
 }
 
 /**
