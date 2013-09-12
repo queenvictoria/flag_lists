@@ -1368,12 +1368,10 @@ function flag_lists_save(&$flag, $account = NULL) {
   if (isset($flag->fid)) {
     flag_lists_update($flag);
     $flag->is_new = FALSE;
-    module_invoke_all('flag_lists', $flag, $account);
   }
   else {
     flag_lists_insert($flag);
     $flag->is_new = TRUE;
-    module_invoke_all('flag_lists', $flag, $account);
   }
   // Clear the page cache for anonymous users.
 //    cache_clear_all('*', 'cache_page', TRUE);
@@ -1391,6 +1389,7 @@ function flag_lists_update($flag) {
     ))
     ->condition('fid', $flag->fid)
     ->execute();
+  module_invoke_all('flag_lists', $flag, $account);
 }
 
 /**
@@ -1412,13 +1411,9 @@ function flag_lists_insert($flag) {
 }
 
 /**
- * Dogfooding our hook.
- *
  * When a flagging occurs, store the flag used (if it was a list)
  */
-function flag_lists_flag_lists($flag, $account) {
-  error_log("hook callback");
-  drupal_set_message("hook callback");
+function flag_lists_flag_flag($flag, $entity_id, $account, $fcid) {
   // people are using user fields as the user data array is deprecated in D8
   if ( ! $account )
     $account = $GLOBALS['user'];
