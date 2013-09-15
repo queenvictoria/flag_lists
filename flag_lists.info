@@ -15,6 +15,7 @@ files[] = includes/flag_lists_handler_argument_fid.inc
 files[] = includes/flag_lists_handler_field_list.inc
 files[] = includes/flag_lists_handler_field_list_delete.inc
 files[] = includes/flag_lists_handler_field_list_edit.inc
+files[] = includes/flag_lists_handler_field_add_default.inc
 files[] = includes/flag_lists_handler_field_ops.inc
 files[] = includes/flag_lists_handler_field_template.inc
 files[] = includes/flag_lists_handler_field_template_types.inc

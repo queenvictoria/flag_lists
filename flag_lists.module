@@ -1377,12 +1377,10 @@ function flag_lists_save(&$flag, $account = NULL) {
   if (isset($flag->fid)) {
     flag_lists_update($flag);
     $flag->is_new = FALSE;
-    module_invoke_all('flag_lists', $flag, $account);
   }
   else {
     flag_lists_insert($flag);
     $flag->is_new = TRUE;
-    module_invoke_all('flag_lists', $flag, $account);
   }
   // Clear the page cache for anonymous users.
 //    cache_clear_all('*', 'cache_page', TRUE);
@@ -1400,6 +1398,7 @@ function flag_lists_update($flag) {
     ))
     ->condition('fid', $flag->fid)
     ->execute();
+  module_invoke_all('flag_lists', $flag);
 }
 
 /**
@@ -1421,11 +1420,9 @@ function flag_lists_insert($flag) {
 }
 
 /**
- * Dogfooding our hook.
- *
  * When a flagging occurs, store the flag used (if it was a list)
  */
-function flag_lists_flag_lists($flag, $account) {
+function flag_lists_flag_flag($flag, $entity_id, $account, $fcid) {
   // people are using user fields as the user data array is deprecated in D8
   if ( ! $account )
     $account = $GLOBALS['user'];
@@ -2309,6 +2306,27 @@ function flag_lists_flagging_edit_form_submit($form, &$form_state) {
     drupal_set_message(ucfirst($type) . " saved to " . ucfirst($flag->title) . ".", 'status');
     drupal_goto('user/' . $account->uid . '/flags/lists/flagging/' . $fcid . '/edit');
   }
+}
+
+
+function flag_lists_default_link($entity_id, $toggle=FALSE, $uid=NULL, $text=NULL) {
+  if (!isset($uid)) {
+    $account = $GLOBALS['user'];
+    $uid = $account->uid;
+  }
+  $text = $text ? $text : 'Add to your default ' . FLAG_LISTS_NOUN;
+  $options = array(
+    'attributes' => array(
+      'class' => array(
+        'flag-lists-add-default-link',
+        'use-js', //  signal drupal to convert to an ajax callback
+      ),
+      'id' => 'flag_lists-add-default-' . $entity_id,
+    ),
+    'query' => drupal_get_destination(),
+  );
+
+  return l($text, implode('/', array('user', $uid, 'flags', 'lists', 'flag', $entity_id, 'no-js')), $options);
 }
 
 /**
