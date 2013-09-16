@@ -1832,8 +1832,7 @@ function flag_lists_flagging_default($uid = NULL, $entity_id = NULL, $return_typ
     $fcid = $flagging->fcid;
   }
   if ( $fcid ) {
-    $button = _flag_lists_get_change_link($uid, $fcid);
-    $msg .= t(' Choose another ' . $button . '?');
+    $msg .= _flag_lists_get_change_link($uid, $fcid);
   }
 
   if ( $return_type == 'ajax' ) {
@@ -1865,7 +1864,7 @@ function _flag_lists_get_change_link($uid, $fcid) {
       'edit',
       'nojs',
     );
-    return ctools_modal_text_button(' Choose another ' . FLAG_LISTS_NOUN, implode('/', $path), FLAG_LISTS_NOUN, 'ctools-modal-flag-lists-modal-style ctools-modal-flag-lists-modal-' . $fcid);
+    return ctools_modal_text_button(t('Choose another !noun', array('!noun' => FLAG_LISTS_NOUN)), implode('/', $path), FLAG_LISTS_NOUN, 'ctools-modal-flag-lists-modal-style ctools-modal-flag-lists-modal-' . $fcid);
 }
 
 /*
@@ -2199,7 +2198,7 @@ function flag_lists_flagging_edit_form_js($account, $flagging_id, $operation='ed
 
     $form_state = array(
       'ajax' => $ajax,
-      'title' => t('Change ' . FLAG_LISTS_NOUN),
+      'title' => t('Change !noun', array('!noun' => FLAG_LISTS_NOUN)),
       );
     $form_state['build_info']['args'] = array($account, $flagging_id, $operation);
 
