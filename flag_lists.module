@@ -1841,9 +1841,17 @@ function flag_lists_flagging_default($uid = NULL, $entity_id = NULL, $return_typ
     $result_container = '<span class="flag_lists-add-default-result hidden" id="flag_lists-add-default-result-' . $entity_id . '">' . $msg . '</span>';
 
     $link_id = 'flag_lists-add-default-' . $entity_id;
+    $wrapper_id = 'flag-lists-wrapper-' . $entity_id;
     $result_id = 'flag_lists-add-default-result-' . $entity_id;
     $commands[] = ajax_command_changed('#' . $link_id);
     $commands[] = ajax_command_html('#' . $result_id, $msg);
+    $commands[] = ajax_command_invoke('#' . $result_id, 'show');
+
+    // add active to the parent
+    $commands[] = ajax_command_invoke('#' . $wrapper_id . ':parent', 'addClass', array('active'));
+
+    $commands[] = ajax_command_invoke('#' . $wrapper_id, 'trigger', array('flagged'));
+
     return array('#type' => $return_type, '#commands' => $commands);
   } else {
     drupal_set_message($msg, $msg_type);
@@ -2334,7 +2342,7 @@ function flag_lists_flagging_edit_form_submit($form, &$form_state) {
   }
 }
 
-
+// @TODO replace with theme function
 function flag_lists_default_link($entity_id, $toggle=FALSE, $uid=NULL, $text=NULL) {
   if (!isset($uid)) {
     $account = $GLOBALS['user'];
@@ -2352,7 +2360,26 @@ function flag_lists_default_link($entity_id, $toggle=FALSE, $uid=NULL, $text=NUL
     'query' => drupal_get_destination(),
   );
   $result_container = '<span class="flag_lists-add-default-result hidden" id="flag_lists-add-default-result-' . $entity_id . '"></span>';
-  return l($text, implode('/', array('user', $uid, 'flags', 'lists', 'flag', $entity_id, 'nojs')), $options) . $result_container;
+  $link = l($text, implode('/', array('user', $uid, 'flags', 'lists', 'flag', $entity_id, 'nojs')), $options);
+
+  $count = '';
+  if ( function_exists('_flag_lists_entity_count') ) {
+    $counter = _flag_lists_entity_count($uid, $entity_id);
+    if ( $counter )
+      $count = '<span class="flag-lists-count count">' . $counter . '</span>';
+  }
+
+  $wrapper = '
+  <div class="flag-lists-wrapper" id="flag-lists-wrapper-' . $entity_id . '">
+    <div class="flag-lists-link-wrapper">
+      ' . $link . '
+      ' . $count . '
+    </div>
+    ' . $result_container . '
+  </div>
+  ';
+
+  return $wrapper;
 }
 
 /**
