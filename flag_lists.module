@@ -1832,7 +1832,7 @@ function flag_lists_flagging_default($uid = NULL, $entity_id = NULL, $return_typ
     $fcid = $flagging->fcid;
   }
   if ( $fcid ) {
-    $msg .= _flag_lists_get_change_link($uid, $fcid);
+    $msg .= ' ' . _flag_lists_get_change_link($uid, $fcid);
   }
 
   if ( $return_type == 'ajax' ) {
