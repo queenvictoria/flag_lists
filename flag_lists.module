@@ -160,12 +160,19 @@ function flag_lists_menu() {
     'access callback' => 'user_access',
     'access arguments' => array('access content'),
     'type' => MENU_CALLBACK,
-    // 'delivery callback' => 'ajax_deliver',
+    'delivery callback' => 'ajax_deliver',
   );
 
   return $items;
 }
 
+
+/**
+ *
+ */
+function flag_lists_preprocess_html() {
+  drupal_add_library('system', 'drupal.ajax');
+}
 /**
  * User flag page. Display a list of user-created flag lists.
  */
@@ -1093,7 +1100,7 @@ function theme_flag_lists_list($variables) {
   // add to default
   $default = TRUE;
   if ($default && flag_lists_template_exists($content_type)) {
-    $items[] = l(t('Add to default @name', array('@name' => variable_get('flag_lists_name', t('list')))), 'user/' . $user->uid . '/flags/lists/flag/' . $entity_id . '/no-js', array('query' => drupal_get_destination()));
+    $items[] = l(t('Add to default @name', array('@name' => variable_get('flag_lists_name', t('list')))), 'user/' . $user->uid . '/flags/lists/flag/' . $entity_id . '/nojs', array('query' => drupal_get_destination()));
   }
   if ($create && flag_lists_template_exists($content_type)) {
     $items[] = l(t('Make a new @name', array('@name' => variable_get('flag_lists_name', t('list')))), 'flag-lists/add/' . $content_type, array('query' => drupal_get_destination()));
@@ -1765,7 +1772,7 @@ function flag_lists_get_templates() {
 /**
  * Add a flagging for the entity to the default flag_list
  */
-function flag_lists_flagging_default($uid = NULL, $entity_id = NULL, $return_type = 'ajax') {
+function flag_lists_flagging_default($uid = NULL, $entity_id = NULL, $return_type = 'nojs') {
   $entity = entity_load('node', array($entity_id));
 
   $type = $entity[$entity_id]->type;
@@ -1822,9 +1829,19 @@ function flag_lists_flagging_default($uid = NULL, $entity_id = NULL, $return_typ
 
     $msg .= t(' Choose another ' . l(FLAG_LISTS_NOUN, implode('/', $path)) . '?');
   }
+  if ( $return_type == 'ajax' ) {
+    $commands = array();
+    $result_container = '<span class="flag_lists-add-default-result hidden" id="flag_lists-add-default-result-' . $entity_id . '">' . $msg . '</span>';
 
-  drupal_set_message($msg, $msg_type);
-  drupal_goto(drupal_get_destination());
+    $link_id = 'flag_lists-add-default-' . $entity_id;
+    $result_id = 'flag_lists-add-default-result-' . $entity_id;
+    $commands[] = ajax_command_changed('#' . $link_id);
+    $commands[] = ajax_command_html('#' . $result_id, $msg);
+    return array('#type' => $return_type, '#commands' => $commands);
+  } else {
+    drupal_set_message($msg, $msg_type);
+    drupal_goto(drupal_get_destination());
+  }
 }
 
 /*
@@ -2204,14 +2221,14 @@ function flag_lists_default_link($entity_id, $toggle=FALSE, $uid=NULL, $text=NUL
     'attributes' => array(
       'class' => array(
         'flag-lists-add-default-link',
-        'use-js', //  signal drupal to convert to an ajax callback
+        'use-ajax', //  signal drupal to convert to an ajax callback
       ),
       'id' => 'flag_lists-add-default-' . $entity_id,
     ),
     'query' => drupal_get_destination(),
   );
-
-  return l($text, implode('/', array('user', $uid, 'flags', 'lists', 'flag', $entity_id, 'no-js')), $options);
+  $result_container = '<span class="flag_lists-add-default-result hidden" id="flag_lists-add-default-result-' . $entity_id . '"></span>';
+  return l($text, implode('/', array('user', $uid, 'flags', 'lists', 'flag', $entity_id, 'nojs')), $options) . $result_container;
 }
 
 /**
