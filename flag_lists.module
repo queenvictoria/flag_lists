@@ -2359,7 +2359,19 @@ function flag_lists_default_link($entity_id, $toggle=FALSE, $uid=NULL, $text=NUL
     'query' => drupal_get_destination(),
   );
   $result_container = '<span class="flag_lists-add-default-result hidden" id="flag_lists-add-default-result-' . $entity_id . '"></span>';
-  $link = l($text, implode('/', array('user', $uid, 'flags', 'lists', 'flag', $entity_id, 'nojs')), $options);
+
+  $url = implode('/', array('user', $uid, 'flags', 'lists', 'flag', $entity_id, 'nojs'));
+
+  // Redirect anonymous users to login
+  if ($uid == 0) {
+    $destination = drupal_get_destination();
+    $destination['destination'] = implode('/', array('user', $uid, 'flags', 'lists', 'flag', $entity_id, 'nojs')) . '?destination=' . $destination['destination'];
+
+    $options['attributes']['class'][] = 'flag-lists-permission-denied';
+    $options['attributes']['query'] = $destination;
+  }
+
+  $link = l($text, $url, $options);
 
   $count = '';
   if ( function_exists('_flag_lists_entity_count') ) {
