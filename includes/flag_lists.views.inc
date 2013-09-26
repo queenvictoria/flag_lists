@@ -34,6 +34,10 @@ function flag_lists_views_handlers() {
         'parent' => 'views_handler_field',
         'file' => 'flag_lists_handler_field_list_delete.inc',
       ),
+      'flag_lists_handler_field_list_count' => array(
+        'parent' => 'views_handler_field',
+        'file' => 'flag_lists_handler_field_list_count.inc',
+      ),
       'flag_lists_handler_field_template_types' => array(
         'parent' => 'views_handler_field_prerender_list',
         'file' => 'flag_lists_handler_field_template_types.inc',
@@ -314,6 +318,13 @@ function flag_lists_views_data() {
       ),
       'sort' => array(
         'handler' => 'views_handler_sort',
+      ),
+    ),
+    'count' => array(
+      'field' => array(
+        'title' => t('Count'),
+        'help' => t('Number of entities in the list'),
+        'handler' => 'flag_lists_handler_field_list_count',
       ),
     ),
   );

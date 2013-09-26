@@ -1726,6 +1726,36 @@ function flag_lists_fix_link(&$link, $action) {
     }
   }
 
+  /**
+   * Helper to get the number of entities flagged for a particular flag.
+   */
+  function _flag_lists_get_list_count($flag) {
+    if ( intval($flag) ) {
+      $flag = flag_lists_get_flag($flag);
+    }
+    $count = db_select('flag_lists_counts', 'f')
+      ->fields('f')
+      ->condition('fid', $flag->fid)
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    return $count;
+  }
+
+  /**
+   * Helper to get the number of times a particular entity has been flagged.
+   */
+  function _flag_lists_entity_count($uid=0, $entity_id=0) {
+    $count = db_select('flag_lists_content', 'f')
+      ->fields('f')
+      ->condition('uid', $uid)
+      ->condition('entity_id', $entity_id)
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    return $count;
+  }
+
 /**
  * Checks for a list template for a content type.
  */
@@ -1845,6 +1875,14 @@ function flag_lists_flagging_default($uid = NULL, $entity_id = NULL, $return_typ
     $commands[] = ajax_command_changed('#' . $link_id);
     $commands[] = ajax_command_html('#' . $result_id, $msg);
     $commands[] = ajax_command_invoke('#' . $result_id, 'show');
+
+    // get the count if we have it and add that too.
+    if ( function_exists('_flag_lists_entity_count') ) {
+      $counter = _flag_lists_entity_count($uid, $entity_id);
+      $count = '<span class="flag-lists-count count">' . $counter . '</span>';
+      $commands[] = ajax_command_remove('#' . $wrapper_id . ' .flag-lists-count');
+      $commands[] = ajax_command_append('#' . $wrapper_id . ' .flag-lists-link-wrapper', $count);
+    }
 
     // add active to the parent
     $commands[] = ajax_command_invoke('#' . $wrapper_id . ':parent', 'addClass', array('active'));
@@ -1968,6 +2006,10 @@ function flag_lists_token_info() {
     'name' => t("Title"),
     'description' => t("The title of the list."),
   );
+  $flag_lists['count'] = array(
+    'name' => t("Count"),
+    'description' => t("The number of items in the list."),
+  );
 
   return array(
     'types' => array('flag_lists' => $type),
@@ -1990,6 +2032,10 @@ function flag_lists_tokens($type, $tokens, array $data = array(), array $options
           break;
         case 'term':
           $replacements[$original] = variable_get('flag_lists_name', t('list'));
+          break;
+        case 'count':
+          $count = _flag_lists_get_list_count($flag_list);
+          $replacements[$original] = $count;
           break;
       }
     }
