@@ -2363,6 +2363,7 @@ function flag_lists_default_link($entity_id, $toggle=FALSE, $uid=NULL, $text=NUL
   $url = implode('/', array('user', $uid, 'flags', 'lists', 'flag', $entity_id, 'nojs'));
 
   // Redirect anonymous users to login
+  // @TODO check that anonymous users are NOT permitted to flag
   if ($uid == 0) {
     $destination = drupal_get_destination();
     $destination['destination'] = implode('/', array('user', $uid, 'flags', 'lists', 'flag', $entity_id, 'nojs')) . '?destination=' . $destination['destination'];
