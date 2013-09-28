@@ -1855,7 +1855,7 @@ function flag_lists_flagging_default($uid = NULL, $entity_id = NULL, $return_typ
     // than moving the flagging.
     $path = implode('/', array('user', $uid, 'flags', 'lists', $flag->fid));
     $operation = 'add';
-    $msg = 'Already saved in \'' . l($flag->title, $path) . '\'.';
+    $msg = 'Already saved in ' . l($flag->title, $path) . '.';
     $msg_type = 'warning';
     // get flagging by flag and entity
     $flagging = flag_lists_get_flagging_by_entity($flag->fid, $entity_id);
@@ -1883,10 +1883,8 @@ function flag_lists_flagging_default($uid = NULL, $entity_id = NULL, $return_typ
       $commands[] = ajax_command_remove('#' . $wrapper_id . ' .flag-lists-count');
       $commands[] = ajax_command_append('#' . $wrapper_id . ' .flag-lists-link-wrapper', $count);
     }
-
     // add active to the parent
     $commands[] = ajax_command_invoke('#' . $wrapper_id . ':parent', 'addClass', array('active'));
-
     $commands[] = ajax_command_invoke('#' . $wrapper_id, 'trigger', array('flagged'));
 
     return array('#type' => $return_type, '#commands' => $commands);
@@ -2117,8 +2115,8 @@ function flag_lists_preprocess_html(&$views) {
           // This function assumes the images are inside the module directory's "images"
           // directory:
           // ctools_image_path($image, $module = 'ctools', $dir = 'images')
-          'throbber' => theme('image', array('path' => ctools_image_path('ajax-loader.gif', 'flag-lists'), 'alt' => t('Loading...'), 'title' => t('Loading'))),
-          'closeImage' => theme('image', array('path' => ctools_image_path('modal-close.png', 'flag-lists'), 'alt' => t('Close window'), 'title' => t('Close window'))),
+          // 'throbber' => theme('image', array('path' => ctools_image_path('ajax-loader.gif', 'flag-lists'), 'alt' => t('Loading...'), 'title' => t('Loading'))),
+          // 'closeImage' => theme('image', array('path' => ctools_image_path('modal-close.png', 'flag-lists'), 'alt' => t('Close window'), 'title' => t('Close window'))),
         ),
       );
     // Add the settings array defined above to Drupal 7's JS settings:
@@ -2244,7 +2242,6 @@ function flag_lists_flagging_edit_form($form, &$form_state, $account, $flagging_
 
 function flag_lists_flagging_edit_form_js($account, $flagging_id, $operation='edit', $ajax=NULL) {
   $form_id = 'flag_lists_flagging_edit_form';
-  // error_log("returning $form_id");
   if ( $ajax ) {
     ctools_include('ajax');
     ctools_include('modal');
