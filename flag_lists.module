@@ -1818,6 +1818,14 @@ function flag_lists_get_templates() {
  * Add a flagging for the entity to the default flag_list
  */
 function flag_lists_flagging_default($uid = NULL, $entity_id = NULL, $return_type = 'nojs') {
+  global $user;
+
+  // Stylecraft, a recently logged in user may be redirected to this page with a ui still = 0
+  // a small test is necessary to set the uid to the newly logged in user
+  if ($uid == 0) {
+    $uid = $user->uid;
+  }
+
   $entity = entity_load('node', array($entity_id));
 
   $type = $entity[$entity_id]->type;
@@ -2413,10 +2421,10 @@ function flag_lists_default_link($entity_id, $toggle=FALSE, $uid=NULL, $text=NUL
   // @TODO check that anonymous users are NOT permitted to flag
   if ($uid == 0) {
     $destination = drupal_get_destination();
-    $destination['destination'] = implode('/', array('user', $uid, 'flags', 'lists', 'flag', $entity_id, 'nojs')) . '?destination=' . $destination['destination'];
 
-    $options['attributes']['class'][] = 'flag-lists-permission-denied';
-    $options['attributes']['query'] = $destination;
+    $options['attributes']['class'] = array('flag-lists-permission-denied', 'flag-lists-add-default-link');
+    $options['query']['destination'] = implode('/', array('user', $uid, 'flags', 'lists', 'flag', $entity_id, 'nojs')) . '?destination=' . $destination['destination'];
+    $url = 'user/login';
   }
 
   $link = l($text, $url, $options);
