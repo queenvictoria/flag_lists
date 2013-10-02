@@ -1836,24 +1836,18 @@ function flag_lists_clone_form($form, &$form_state, $account, $owner_uid, $flid,
   // Giving each form element an unique ID stops the
   // Uncaught Syntax error, unrecognized expression: # error.
   // the 'list' select element with options
-  $form_id = 'flag-lists-menu-flag-lists-flagging-edit-form';
+  $form_id = 'flag-lists-clone-list-form';
   // should we change or add another?
   $form['operation'] = array(
     '#id' => $form_id . '-operatation-edit',
-    '#type' => 'radios',
-    '#title' => t('Operation'),
-    '#options' => array(
-      'new' => 'Create a new ' . strtolower($list_collective_noun),
-      'add' => 'Add to an existing ' . strtolower($list_collective_noun),
-      // 'replace' => 'Replace an existing ' . strtolower($list_collective_noun),
-      ),
-    '#default_value' => 'new',
-    // '#value' => $operation,
+    '#type' => 'checkbox',
+    '#title' => t('Add to an existing ' . strtolower($list_collective_noun)),
+    '#return_value' => 'add',
   );
 // a reference to the incoming list
   $form['flag_list'] = array(
     '#id' => $form_id . '-flag-list-edit',
-    '#type' => 'textfield',
+    '#type' => 'hidden',
     '#value' => $flid,
   );
 
@@ -1865,7 +1859,7 @@ function flag_lists_clone_form($form, &$form_state, $account, $owner_uid, $flid,
     '#title' => $list_collective_noun . ' name',
     // This shows the existing_list field if 'operation' value is 'new'
     '#states' => array(
-      'invisible' => array(':input[name="operation"]' => array('value' => 'new')),
+      'visible' => array(':input[name="operation"]' => array('checked' => TRUE)),
     ),
     '#description' => 'Update your existing <span class="flag-lists-collective-noun">' . strtolower($list_collective_noun) . '</span>.',
   );
@@ -1877,7 +1871,7 @@ function flag_lists_clone_form($form, &$form_state, $account, $owner_uid, $flid,
     '#default_value' => $flag_list->title,
     // This shows the title field if 'list' value is 'new'
     '#states' => array(
-      'visible' => array(':input[name="operation"]' => array('value' => 'new')),
+      'invisible' => array(':input[name="operation"]' => array('checked' => TRUE)),
     ),
     '#description' => 'The name of the new <span class="flag-lists-collective-noun">' . strtolower($list_collective_noun) . '</span>.',
   );
@@ -1897,7 +1891,9 @@ function flag_lists_clone_form_validate($form, &$form_state) {
   // @TODO test to see if the flag is already in that list too
   // @TODO or if the new list name is already used
   $errors = 0;
-  if ( $form_state['values']['operation'] == 'new' ) {
+  $operation = $form_state['values']['operation'];
+
+  if ( $form_state['values']['operation'] != 'add' ) {
     $title = trim($form_state['values']['flag_list_title']);
     //  the name must be set
     if ( empty($title) ) {
@@ -1931,8 +1927,7 @@ function flag_lists_clone_form_submit($form, &$form_state) {
   // Get the current list (potentially from another user).
   $current_flag_list_id = $form_state['values']['flag_list'];
   $current_flag_list = flag_lists_get_flag($current_flag_list_id);
-
-  if ( $operation == 'new' ) {
+  if ( $operation != 'add' ) {
     $title = trim($form_state['values']['flag_list_title']);
     // Get the type from the existing list
     $type = array_shift($current_flag_list->types);
