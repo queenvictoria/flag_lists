@@ -372,6 +372,12 @@ function flag_lists_form_alter(&$form, &$form_state, $form_id) {
         $form['#action'] = '/' . implode('/', arg());
       }
     break;
+    case 'user_login':
+     // Stylecraft. Add a status message if we are in the case of a add Product to flag list.
+      if (strpos($_SERVER['REQUEST_URI'], "%3Fdestination%3D")) {
+        drupal_set_message(t('Please sign in before adding a product to your collection.'), 'status');
+      }
+    break;
   }
 
   // Flag lists operations related changes
@@ -1855,6 +1861,7 @@ function flag_lists_flagging_default($uid = NULL, $entity_id = NULL, $return_typ
     $path = implode('/', array('user', $uid, 'flags', 'lists', $flag->fid));
 
     $fcid = flag_lists_do_flag($flag, 'flag', $entity_id);
+    drupal_get_messages(NULL, TRUE);
     $msg = t('Saved to your \'' . l($flag->title, $path) . '\' ' . FLAG_LISTS_NOUN . '.');
     $msg_type = 'status';
   } else {
