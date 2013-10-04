@@ -373,8 +373,9 @@ function flag_lists_form_alter(&$form, &$form_state, $form_id) {
       }
     break;
     case 'user_login':
-     // Stylecraft. Add a status message if we are in the case of a add Product to flag list.
-      if (strpos($_SERVER['REQUEST_URI'], "%3Fdestination%3D")) {
+      // Stylecraft. Add a status message if we are in the case of a add Product to flag list.
+      // There are two possible cases, from the products search page or from a product detail page
+      if (strpos($_SERVER['REQUEST_URI'], "%3Fdestination%3D") || substr_count($_SERVER['REQUEST_URI'], '?destination=') == 2) {
         drupal_set_message(t('Please sign in before adding a product to your collection.'), 'status');
       }
     break;
