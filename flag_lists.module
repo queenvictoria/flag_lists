@@ -153,6 +153,17 @@ function flag_lists_menu() {
     'file' => 'flag_lists.module',
     'type' => MENU_CALLBACK,
   );
+  // a form for duplicating a list
+  // user and edit are probably redundant. flaglist ids are specific
+  $items['user/%user/flags/lists/clone/%/%'] = array(
+    'title' => 'Duplicate this ' . ucfirst(variable_get('flag_lists_name', 'list')),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('flag_lists_clone_form', 1, 5, 6),
+    'access callback' => 'user_access',
+    'access arguments' => array('view flag lists'),
+    'file' => 'flag_lists.module',
+    'type' => MENU_CALLBACK,
+  );
   $items['user/%user/flags/lists/%'] = array(
     'title' => ucfirst(variable_get('flag_lists_name', 'list')) . ' content',
     'page callback' => 'flag_lists_user_list',
@@ -1206,6 +1217,8 @@ function flag_lists_get_flags($limit = NULL, $header = NULL) {
  * Using this instead of flag_get_flag() for performance.
  */
 function flag_lists_get_flag($fid) {
+  // @Stylecraft, there was an issue flag lists defaulting to the wrong parent flag id (pfid = 1). 
+  // The fix was to overwrite it in the table flag_lists_flags
   // If we don't have an fid, then we have the flag name.
   if (!is_numeric($fid)) {
     $query = db_select('flag_lists_flags')
@@ -1574,6 +1587,7 @@ function flag_lists_fix_link(&$link, $action) {
    *   applicable to the item, etc.), TRUE otherwise.
    */
   function flag_lists_do_flag($flag, $action, $entity_id, $account = NULL, $skip_permission_check = FALSE) {
+    if ( ! is_object($flag) ) return FALSE;
     if (!isset($account)) {
       $account = $GLOBALS['user'];
     }
@@ -1607,7 +1621,7 @@ function flag_lists_fix_link(&$link, $action) {
     if ($sid == 0 && $account->uid == 0) {
       return FALSE;
     }
-
+    $fcid = NULL;
     // Perform the flagging or unflagging of this flag. We invoke hook_flag here
     // because we do our own flagging.
     $flagged = _flag_lists_is_flagged($flag, $entity_id, $uid, $sid);
@@ -1623,8 +1637,10 @@ function flag_lists_fix_link(&$link, $action) {
         module_invoke_all('flag_flag', $flag, $entity_id, $account, $fcid);
       }
     }
-
-    return $fcid;
+    if ( $fcid )
+      return $fcid;
+    else
+      return;
   }
 
 
@@ -2145,6 +2161,152 @@ function flag_lists_preprocess_html(&$views) {
 }
 
 /**
+ * A form to allow cloning a flag_list.
+ */
+function flag_lists_clone_form($form, &$form_state, $account, $owner_uid, $flid) {
+  $flag_list = flag_lists_get_flag($flid);
+  $operation = 'edit';
+  // @TODO Number of items
+
+  if (!isset($account)) {
+    $account = $GLOBALS['user'];
+  }
+  $verb = $operation == 'edit' ? t('Change') : t('Add');
+  $list_collective_noun = ucfirst(variable_get('flag_lists_name', 'list'));
+  // @TODO fix this
+  $bundle = 'product';
+  //  a list of possible lists
+  $flags = flag_lists_get_user_flags();
+  $options = array();
+  $options['_none'] = 'Select a ' . strtolower($list_collective_noun);
+  foreach ($flags as $name => $f ) {
+    // @TODO fix sid
+    $sid = 0;
+    // disable or remove flags that already contain this entity
+    $options[$name] = $f->title;
+  }
+  // Giving each form element an unique ID stops the
+  // Uncaught Syntax error, unrecognized expression: # error.
+  // the 'list' select element with options
+  $form_id = 'flag-lists-clone-list-form';
+  // should we change or add another?
+  $form['operation'] = array(
+    '#id' => $form_id . '-operatation-edit',
+    '#type' => 'checkbox',
+    '#title' => t('Add to an existing ' . strtolower($list_collective_noun)),
+    '#return_value' => 'add',
+  );
+// a reference to the incoming list
+  $form['flag_list'] = array(
+    '#id' => $form_id . '-flag-list-edit',
+    '#type' => 'hidden',
+    '#value' => $flid,
+  );
+
+  $form['existing_flag_list'] = array(
+    '#id' => $form_id . '-existing-flag-list-edit',
+    '#type' => 'select',
+    '#options' => $options,
+    '#default_value' => $flag_list->name,
+    '#title' => $list_collective_noun . ' name',
+    // This shows the existing_list field if 'operation' value is 'new'
+    '#states' => array(
+      'visible' => array(':input[name="operation"]' => array('checked' => TRUE)),
+    ),
+    '#description' => 'Update your existing <span class="flag-lists-collective-noun">' . strtolower($list_collective_noun) . '</span>.',
+  );
+
+  $form['flag_list_title'] = array(
+    '#id' => $form_id . '-title-edit',
+    '#type' => 'textfield',
+    '#title' => $list_collective_noun . ' name',
+    '#default_value' => $flag_list->title,
+    // This shows the title field if 'list' value is 'new'
+    '#states' => array(
+      'invisible' => array(':input[name="operation"]' => array('checked' => TRUE)),
+    ),
+    '#description' => 'The name of the new <span class="flag-lists-collective-noun">' . strtolower($list_collective_noun) . '</span>.',
+  );
+
+  $form['submit'] = array(
+    '#id' => $form_id . '-submit-edit',
+    '#type' => 'submit',
+    '#value' => t('Duplicate ' . $flag_list->title),
+    );
+  return $form;
+}
+
+function flag_lists_clone_form_validate($form, &$form_state) {
+  $list_collective_noun = ucfirst(variable_get('flag_lists_name', 'list'));
+
+  // @TODO test to see if the flag is already in that list too
+  // @TODO or if the new list name is already used
+  $errors = 0;
+  $operation = $form_state['values']['operation'];
+  
+  // add to existing list
+  // === required to differentiate 0 to False
+  if ( $operation === 'add' ) {
+    // must have selected a list
+    if ( $form_state['values']['existing_flag_list'] == '_none' ) {
+      form_set_error('existing_flag_list', 'Please select a ' . strtolower($list_collective_noun) . '.');
+      $errors++;
+    }
+  } else {
+    $title = trim($form_state['values']['flag_list_title']);
+    //  the name must be set
+    if ( empty($title) ) {
+      form_set_error('flag_list_title', t('Please enter a @noun name.'), array('@name' => $list_collective_noun));
+      $errors++;
+    }
+    // check to see if the name is already used
+    else if ( flag_lists_title_exists($title, 'product') ) {
+      form_set_error('flag_list_title', "The name $title is already in use. Please choose another.");
+      $errors++;
+    } else if (drupal_strlen($title) > 255) {
+      form_set_error('name', t('The @noun title may only be 255 characters long.', array('@noun' => $list_collective_noun )));
+      $errors++;
+    }
+  } 
+}
+
+function flag_lists_clone_form_submit($form, &$form_state) {
+  $list_collective_noun = ucfirst(variable_get('flag_lists_name', 'list'));
+
+  if (!isset($account)) {
+    $account = $GLOBALS['user'];
+  }
+  $operation = $form_state['values']['operation'];
+  // Get the current list (potentially from another user).
+  $current_flag_list_id = $form_state['values']['flag_list']; //
+  $current_flag_list = flag_lists_get_flag($current_flag_list_id);
+ 
+  if ( $operation === 'add' ) {
+    // an existing list
+    $flags = flag_lists_get_user_flags();
+    $flag_list = $flags[$form_state['values']['existing_flag_list']];
+  }else{
+    $title = trim($form_state['values']['flag_list_title']);
+    // Get the type from the existing list
+    $type = array_shift($current_flag_list->types);
+    // Create a new list with the new name
+    $flag_list = _flag_lists_new_list($account, $title, $type);
+  }
+
+  // Flag all the contents into the new list.
+  $flaggings = flag_lists_get_flagged_content($current_flag_list_id, $current_flag_list->uid);
+  $count = 0;
+  foreach ( $flaggings as $flagging ) {
+    if ( flag_lists_do_flag($flag_list, 'flag', $flagging->entity_id, $account, TRUE) ) {
+      $count++;
+    }
+  }
+  $items = format_plural($count, '1 item', '@count items');
+  $message = "Added $items to the " . $flag_list->title . " " . $list_collective_noun . ".";
+  drupal_set_message($message);
+}
+
+/**
  * A form to allow changing to which list the flagging's is flagged.
  */
 function flag_lists_flagging_edit_form($form, &$form_state, $account, $flagging_id, $operation='edit') {
@@ -2459,7 +2621,6 @@ function flag_lists_default_link($entity_id, $toggle=FALSE, $uid=NULL, $text=NUL
 
 /**
  * Once the form is completed return the reformatted link button.
- * @todo Is this being used?
  */
 function flag_lists_flagging_edit_form_callback($form, &$form_state) {
   $entity_id = $form_state['values']['entity_id'];
@@ -2477,6 +2638,51 @@ function flag_lists_flagging_edit_form_callback($form, &$form_state) {
   } else {
     return $flag_link;
   }
+}
+
+function _flag_lists_new_list($account, $title, $type) {
+    // lifted from flag_lists_form_submit
+        // New flag. Load the template row.
+
+    $query = db_select('flag', 'f');
+    $query->join('flag_types', 'ft', 'f.fid = ft.fid');
+    // @TODO use module column instead
+    $query->condition('f.name', 'fl_template%', 'LIKE');
+    $query->condition('ft.type', $type);
+    $query->fields('f');
+
+    $row = $query->execute()->fetchObject();
+
+    if ( ! $row->fid ) {
+      drupal_set_message("Please <a href='/admin/structure/flags/manage/fl_template'>enable</a> the flag lists template.");
+      return;
+    }
+
+    $newflag = flag_flag::factory_by_entity_type($row->entity_type);
+
+    $flag = $newflag->factory_by_row($row);
+    // The template fid becomes the flag_lists parent flag.
+    $flag->pfid = $row->fid;
+    // The fid is NULL because this is really a new flag.
+    $flag->fid = NULL;
+    // The name is created in the save function.
+    $flag->name = NULL;
+    $flag->link_type = 'toggle';
+    $flag->title = $title;
+    $flag->types = array($type);
+    $flag->uid = $account->uid;
+    flag_lists_set_messages($flag);
+    // Save it.
+    $flag = flag_lists_save($flag, $account);
+    drupal_set_message("New " . variable_get('flag_lists_name', t('list')) . " " . ucfirst($title) . " created.");
+    // we dont get the flag returned unfortunately
+    $flags = flag_lists_get_user_flags();
+    foreach ( $flags as $flag ) {
+      if ( $flag->title == $title ) {
+        break;
+      }
+    }
+    return $flag;
 }
 
 function _flag_lists_get_entity_title($entity_id) {
