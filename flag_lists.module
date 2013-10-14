@@ -142,10 +142,10 @@ function flag_lists_menu() {
   );
   // a form for duplicating a list
   // user and edit are probably redundant. flaglist ids are specific
-  $items['user/%user/flags/lists/clone/%/%/%'] = array(
+  $items['user/%user/flags/lists/clone/%/%'] = array(
     'title' => 'Duplicate this ' . ucfirst(variable_get('flag_lists_name', 'list')),
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('flag_lists_clone_form', 1, 5, 6, 7),
+    'page arguments' => array('flag_lists_clone_form', 1, 5, 6),
     'access callback' => 'user_access',
     'access arguments' => array('view flag lists'),
     'file' => 'flag_lists.module',
@@ -1168,6 +1168,8 @@ function flag_lists_get_flags($limit = NULL, $header = NULL) {
  * Using this instead of flag_get_flag() for performance.
  */
 function flag_lists_get_flag($fid) {
+  // @Stylecraft, there was an issue flag lists defaulting to the wrong parent flag id (pfid = 1). 
+  // The fix was to overwrite it in the table flag_lists_flags
   // If we don't have an fid, then we have the flag name.
   if (!is_numeric($fid)) {
     $query = db_select('flag_lists_flags')
@@ -1812,8 +1814,9 @@ function flag_lists_views_form_substitutions() {
 /**
  * A form to allow cloning a flag_list.
  */
-function flag_lists_clone_form($form, &$form_state, $account, $owner_uid, $flid, $operation='edit') {
+function flag_lists_clone_form($form, &$form_state, $account, $owner_uid, $flid) {
   $flag_list = flag_lists_get_flag($flid);
+  $operation = 'edit';
   // @TODO Number of items
 
   if (!isset($account)) {
@@ -1892,8 +1895,16 @@ function flag_lists_clone_form_validate($form, &$form_state) {
   // @TODO or if the new list name is already used
   $errors = 0;
   $operation = $form_state['values']['operation'];
-
-  if ( $form_state['values']['operation'] != 'add' ) {
+  
+  // add to existing list
+  // === required to differentiate 0 to False
+  if ( $operation === 'add' ) {
+    // must have selected a list
+    if ( $form_state['values']['existing_flag_list'] == '_none' ) {
+      form_set_error('existing_flag_list', 'Please select a ' . strtolower($list_collective_noun) . '.');
+      $errors++;
+    }
+  } else {
     $title = trim($form_state['values']['flag_list_title']);
     //  the name must be set
     if ( empty($title) ) {
@@ -1908,13 +1919,7 @@ function flag_lists_clone_form_validate($form, &$form_state) {
       form_set_error('name', t('The @noun title may only be 255 characters long.', array('@noun' => $list_collective_noun )));
       $errors++;
     }
-  } else {
-    // must have selected a list
-    if ( $form_state['values']['existing_flag_list'] == '_none' ) {
-      form_set_error('existing_flag_list', 'Please select a ' . strtolower($list_collective_noun) . '.');
-      $errors++;
-    }
-  }
+  } 
 }
 
 function flag_lists_clone_form_submit($form, &$form_state) {
@@ -1925,18 +1930,19 @@ function flag_lists_clone_form_submit($form, &$form_state) {
   }
   $operation = $form_state['values']['operation'];
   // Get the current list (potentially from another user).
-  $current_flag_list_id = $form_state['values']['flag_list'];
+  $current_flag_list_id = $form_state['values']['flag_list']; //
   $current_flag_list = flag_lists_get_flag($current_flag_list_id);
-  if ( $operation != 'add' ) {
+ 
+  if ( $operation === 'add' ) {
+    // an existing list
+    $flags = flag_lists_get_user_flags();
+    $flag_list = $flags[$form_state['values']['existing_flag_list']];
+  }else{
     $title = trim($form_state['values']['flag_list_title']);
     // Get the type from the existing list
     $type = array_shift($current_flag_list->types);
     // Create a new list with the new name
     $flag_list = _flag_lists_new_list($account, $title, $type);
-  } else {
-    // an existing list
-    $flags = flag_lists_get_user_flags();
-    $flag_list = $flags[$form_state['values']['existing_flag_list']];
   }
 
   // Flag all the contents into the new list.
