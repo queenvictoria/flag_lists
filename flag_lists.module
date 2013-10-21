@@ -1711,6 +1711,31 @@ function flag_lists_fix_link(&$link, $action) {
   }
 
   /**
+   * Remove all entries of entity_id and type
+   *
+   * @param $entity_id
+   *   Entity id which has been flagged.
+   * @param $type
+   *   The entity type.
+   */
+  function _flag_lists_remove_entity($entity_id, $type) {
+    $query = db_select('flag_lists_content')
+      ->condition('entity_id', $entity_id)
+      ->condition('entity_type', $type);
+    $query->fields('flag_lists_content', array('fcid', 'fid', 'uid', 'sid'));
+    $items = $query->execute()->fetchAll();
+   
+   if ($items) {
+    foreach ($items as $key => $value) {
+      db_delete('flag_lists_content')
+        ->condition('fcid', $value->fcid)
+        ->execute();
+        watchdog('flag_lists', t('Deleted entry @fcid from flat_lists_content', array('@fcid' => $value->fcid)));
+      }
+    }
+  }
+
+  /**
    * Updates the flag count for this content
    */
   function _flag_lists_update_count($flag, $entity_id) {
@@ -2689,3 +2714,16 @@ function _flag_lists_get_entity_title($entity_id) {
   $entity = entity_load('node', array($entity_id));
   return $entity[$entity_id]->title;
 }
+
+/**
+ * Implements hook_entity_delete
+ */
+function flag_lists_entity_delete($entity, $type) {
+  foreach (flag_get_flags($type) as $flag) {
+    if (isset($entity->vid)) {
+      $items = _flag_lists_remove_entity($entity->vid, $type);
+    }
+  }
+}
+
+
