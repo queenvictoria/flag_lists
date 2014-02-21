@@ -1237,6 +1237,9 @@ function flag_lists_get_flag($fid) {
   foreach ($result as $row) {
     if (!isset($flag->name)) {
       $flag = flag_flag::factory_by_row($row);
+      if ( ! isset($flag->module) ) {
+        $flag->module = 'flag_lists';
+      }
     }
     else {
       $flag->types[] = $row->type;
@@ -1563,6 +1566,17 @@ function flag_lists_page($action = NULL, $flag_name = NULL, $entity_id = NULL) {
     drupal_set_message($flag->get_label($action . '_message', $entity_id));
     drupal_goto();
   }
+}
+
+
+// Get a flag/unflag link for a flagging
+// function flag_lists_page($action = NULL, $flag_name = NULL, $entity_id = NULL) {
+function flag_lists_get_link($uid, $fid, $entity_id, $text = 'flag', $action = 'flag') {
+    $flag = flag_lists_get_flag($fid);
+    $variables = array();
+    $link = $flag->theme($action, $entity_id, $variables);
+    flag_lists_fix_link($link, $action);
+    return $link;
 }
 
 function flag_lists_fix_link(&$link, $action) {

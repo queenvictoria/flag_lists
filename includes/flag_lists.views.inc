@@ -164,8 +164,8 @@ function flag_lists_views_data() {
       ),
     ),
     'fid' => array(
-      'title' => t('fid'),
-      'help' => t('Flag list id, required for Flag lists operationis\'s "unflag" action.'),
+      'title' => t('Fid'),
+      'help' => t('Flag list id, required for Flag lists operation\'s "unflag" action.'),
       'field' => array(
         'handler' => 'flag_lists_handler_field_list',
         'click sortable' => TRUE,
@@ -325,6 +325,13 @@ function flag_lists_views_data() {
         'title' => t('Count'),
         'help' => t('Number of entities in the list'),
         'handler' => 'flag_lists_handler_field_list_count',
+      ),
+    ),
+    'unflag' => array(
+      'field' => array(
+        'title' => t('Unflag'),
+        'help' => t('Link to unflag the entity'),
+        'handler' => 'flag_lists_handler_field_unflag',
       ),
     ),
   );

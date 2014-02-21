@@ -6,7 +6,7 @@
  */
 
 /**
- * Field handler to provide simple renderer that links to the list edit page.
+ * Field handler to provide simple renderer that counts the number of entities in a flag list.
  */
 class flag_lists_handler_field_list_count extends views_handler_field {
   function construct() {
